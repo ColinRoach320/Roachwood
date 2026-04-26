@@ -1,6 +1,6 @@
 # Roachwood
 
-Marketing site, admin portal, and client portal for **Roachwood** — a fine-carpentry / contractor business.
+Marketing site, admin portal, and client portal for **Roachwood** — custom cabinetry & home improvements in Scottsdale, AZ.
 
 Built with **Next.js 15 (App Router)**, **TypeScript**, **Tailwind CSS**, and **Supabase** (Auth, Postgres + RLS, Storage).
 
