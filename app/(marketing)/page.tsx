@@ -333,16 +333,10 @@ export default async function HomePage() {
           <div className="mt-8 space-y-5 text-[15px] text-charcoal-300 leading-[1.9]">
             <p>
               I come from a family of builders, firefighters, and craftsmen
-              who believed in doing things the right way. My father,{" "}
-              <strong className="text-charcoal-50 font-medium">
-                John Roach
-              </strong>
-              , was a builder and Deputy Chief, and{" "}
-              <strong className="text-charcoal-50 font-medium">
-                Steve Lesniak
-              </strong>
-              , a Fire Chief and master carpenter, had a major influence on
-              how I think about work, detail, discipline, and pride in the
+              who believed in doing things the right way. My father, John
+              Roach, was a builder and Deputy Chief, and Steve Lesniak, a
+              Fire Chief and master carpenter, had a major influence on how
+              I think about work, detail, discipline, and pride in the
               finished product.
             </p>
             <p>
@@ -356,14 +350,15 @@ export default async function HomePage() {
               Today, I focus on what I enjoy most: working with clients,
               solving problems, and delivering spaces people are proud of —
               whether it&rsquo;s a kitchen, custom cabinetry, a deck, or a
-              full home update. I live in Scottsdale with my wife and two
-              young kids, and I&rsquo;m active in my community and my faith.
-              That foundation shapes how I work and what I put into every
+              full home update.
+            </p>
+            <p>
+              I live in Scottsdale with my wife and two young kids, and
+              I&rsquo;m active in my community and my faith. That
+              foundation shapes how I work and the standard I hold on every
               project.
             </p>
-            <p className="text-charcoal-200 italic">
-              I take a lot of pride in what we build — and it shows.
-            </p>
+            <p>I take pride in the work — and I stand behind it.</p>
           </div>
           <div className="mt-12 pt-8 border-t border-gold-500/20">
             <p className="font-display italic text-2xl text-charcoal-50">
