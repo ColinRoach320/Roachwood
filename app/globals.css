@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --rw-bg: #131315;
+    --rw-surface: #1b1b1e;
+    --rw-surface-2: #26262a;
+    --rw-border: #36363b;
+    --rw-text: #e8e6e0;
+    --rw-text-muted: #a8a8ad;
+    --rw-gold: #c9a961;
+    --rw-gold-soft: #d6ba7c;
+  }
+
+  html, body {
+    background: var(--rw-bg);
+    color: var(--rw-text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: rgba(201, 169, 97, 0.35);
+    color: #fff;
+  }
+
+  /* Subtle film-grain texture for premium feel */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background-image: radial-gradient(rgba(255,255,255,0.018) 1px, transparent 1px);
+    background-size: 3px 3px;
+    mix-blend-mode: overlay;
+    opacity: 0.6;
+  }
+}
+
+@layer components {
+  .rw-hairline {
+    background-image: linear-gradient(90deg, transparent, rgba(201,169,97,0.5), transparent);
+    height: 1px;
+    width: 100%;
+  }
+
+  .rw-eyebrow {
+    @apply font-sans uppercase tracking-[0.22em] text-xs text-gold-500;
+  }
+
+  .rw-display {
+    @apply font-display tracking-tight text-charcoal-50;
+  }
+
+  .rw-card {
+    @apply rounded-xl border border-charcoal-600/70 bg-charcoal-800/80 backdrop-blur-sm shadow-premium;
+  }
+
+  .rw-input {
+    @apply w-full rounded-md border border-charcoal-600 bg-charcoal-900 px-3 py-2 text-charcoal-50 placeholder:text-charcoal-400 focus:outline-none focus:ring-2 focus:ring-gold-500/40 focus:border-gold-500/60 transition;
+  }
+
+  .rw-link {
+    @apply text-gold-400 hover:text-gold-300 transition underline-offset-4 hover:underline;
+  }
+}
