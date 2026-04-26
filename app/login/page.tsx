@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
@@ -54,9 +53,12 @@ export default async function LoginPage({
 
           <p className="mt-6 text-center text-xs text-charcoal-400">
             New client?{" "}
-            <Link href="/#contact" className="rw-link">
+            {/* Plain <a> is intentional: next/link encodes the "#" in
+                cross-route hash hrefs, so this lands on /%23contact. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a href="/#contact" className="rw-link">
               Reach out
-            </Link>{" "}
+            </a>{" "}
             and we&apos;ll set you up.
           </p>
         </div>

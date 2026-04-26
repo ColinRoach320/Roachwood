@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { galleryPublicUrl } from "@/lib/storage";
@@ -92,12 +91,12 @@ export default async function HomePage() {
               — Colin Roach, Founder
             </cite>
           </blockquote>
-          <Link
+          <a
             href="#contact"
             className="mt-12 inline-flex h-12 items-center gap-2 bg-gold-500 px-10 text-xs font-semibold uppercase tracking-[0.22em] text-charcoal-950 hover:bg-gold-400 transition shadow-gold-glow"
           >
             Discuss Your Project <ArrowRight className="h-4 w-4" />
-          </Link>
+          </a>
         </div>
         <div className="absolute bottom-10 right-16 hidden md:flex flex-col items-center gap-2.5">
           <span className="block h-16 w-px bg-gradient-to-b from-gold-500 to-transparent" />

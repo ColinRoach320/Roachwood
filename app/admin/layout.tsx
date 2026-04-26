@@ -8,7 +8,6 @@ import {
   Wallet,
   ClipboardList,
   Globe,
-  Plus,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/portal-shell/Sidebar";
@@ -24,15 +23,6 @@ const nav = [
   { href: "/admin/expenses", label: "Expenses", icon: Wallet },
   { href: "/admin/documents", label: "Documents", icon: FileText },
   { href: "/admin/content", label: "Site Content", icon: Globe },
-];
-
-// Mobile bottom nav: the five things Colin reaches for on his phone.
-const mobileNav = [
-  { href: "/admin", label: "Today", icon: LayoutDashboard },
-  { href: "/admin/jobs", label: "Jobs", icon: Hammer },
-  { href: "/admin/expenses/new", label: "Log", icon: Plus },
-  { href: "/admin/invoices", label: "Bills", icon: Receipt },
-  { href: "/admin/content", label: "Site", icon: Globe },
 ];
 
 export default async function AdminLayout({
@@ -65,7 +55,7 @@ export default async function AdminLayout({
           {children}
         </main>
       </div>
-      <BottomNav items={mobileNav} />
+      <BottomNav scope="admin" />
     </div>
   );
 }

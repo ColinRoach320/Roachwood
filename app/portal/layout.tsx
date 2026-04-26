@@ -4,7 +4,6 @@ import {
   Hammer,
   FileCheck2,
   FileText,
-  MessageSquare,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/portal-shell/Sidebar";
@@ -16,14 +15,6 @@ const nav = [
   { href: "/portal/jobs", label: "Projects", icon: Hammer },
   { href: "/portal/approvals", label: "Approvals", icon: FileCheck2 },
   { href: "/portal/documents", label: "Documents", icon: FileText },
-];
-
-const mobileNav = [
-  { href: "/portal", label: "Home", icon: LayoutDashboard },
-  { href: "/portal/jobs", label: "Projects", icon: Hammer },
-  { href: "/portal/approvals", label: "Approvals", icon: FileCheck2 },
-  { href: "/portal/messages", label: "Messages", icon: MessageSquare },
-  { href: "/portal/documents", label: "Files", icon: FileText },
 ];
 
 export default async function PortalLayout({
@@ -54,7 +45,7 @@ export default async function PortalLayout({
           {children}
         </main>
       </div>
-      <BottomNav items={mobileNav} />
+      <BottomNav scope="portal" />
     </div>
   );
 }
