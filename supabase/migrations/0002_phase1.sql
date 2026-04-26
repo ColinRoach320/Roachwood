@@ -1,4 +1,4 @@
--- Roach Wood — Phase 1: estimates, invoices, expenses
+-- Roachwood — Phase 1: estimates, invoices, expenses
 -- These tables already exist in the live project; this file captures them
 -- so the schema is reproducible from the migrations/ folder. Safe to re-run.
 

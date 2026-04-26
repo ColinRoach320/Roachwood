@@ -24,7 +24,7 @@ export default async function LoginPage({
             <p className="rw-eyebrow">Welcome back</p>
             <h1 className="rw-display mt-3 text-3xl">Sign in</h1>
             <p className="mt-2 text-sm text-charcoal-400">
-              Roach Wood client &amp; team portal.
+              Roachwood client &amp; team portal.
             </p>
           </div>
 

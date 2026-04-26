@@ -31,7 +31,7 @@ export function Logo({
           text,
         )}
       >
-        Roach<span className="text-gold-500">·</span>Wood
+        Roach<span className="italic text-gold-500">wood</span>
       </span>
     </Link>
   );

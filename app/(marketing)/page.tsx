@@ -1,7 +1,67 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
+import { galleryPublicUrl } from "@/lib/storage";
+import type {
+  Testimonial,
+  GalleryItem,
+  SiteSettings,
+} from "@/lib/types";
 
-export default function HomePage() {
+const GALLERY_FALLBACK = [
+  "https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=900&q=80",
+  "https://images.unsplash.com/photo-1565538810643-b5bdb714032a?w=600&q=80",
+  "https://images.unsplash.com/photo-1604709177225-055f99402ea3?w=600&q=80",
+  "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600&q=80",
+  "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&q=80",
+];
+
+export default async function HomePage() {
+  const supabase = await createClient();
+
+  const [testimonialsRes, galleryRes, settingsRes] = await Promise.all([
+    supabase
+      .from("testimonials")
+      .select("*")
+      .eq("visible", true)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: false })
+      .limit(3),
+    supabase
+      .from("gallery_items")
+      .select("*")
+      .eq("visible", true)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: false })
+      .limit(5),
+    supabase
+      .from("site_settings")
+      .select("*")
+      .eq("id", 1)
+      .maybeSingle<SiteSettings>(),
+  ]);
+
+  const testimonials = (testimonialsRes.data ?? []) as Testimonial[];
+  const gallery = (galleryRes.data ?? []) as GalleryItem[];
+  const settings = settingsRes.data;
+
+  // Pad gallery to 5 with placeholder images so the layout never breaks.
+  const galleryUrls: { src: string; alt: string }[] = [
+    ...gallery.map((g) => ({
+      src: galleryPublicUrl(g.storage_path),
+      alt: g.title,
+    })),
+    ...GALLERY_FALLBACK.slice(gallery.length).map((src, i) => ({
+      src,
+      alt: `Roachwood project ${gallery.length + i + 1}`,
+    })),
+  ].slice(0, 5);
+
+  const phone = settings?.phone ?? "(586) 344-0982";
+  const phoneHref = `tel:${(settings?.phone ?? "").replace(/[^0-9+]/g, "") || "+15863440982"}`;
+  const email = settings?.email ?? "info@roachwood.co";
+  const serviceArea = settings?.service_area ?? "Scottsdale & Greater Phoenix Area";
+
   return (
     <>
       {/* HERO */}
@@ -63,7 +123,7 @@ export default function HomePage() {
             <span className="mt-7 block h-0.5 w-12 bg-gold-500" />
           </div>
           <p className="text-charcoal-300 text-lg leading-[1.8] max-w-xl">
-            At Roach Wood, we specialize in custom cabinetry and high-quality
+            At Roachwood, we specialize in custom cabinetry and high-quality
             home improvements — from kitchens and built-ins to decks and full
             interior updates. We don&rsquo;t build houses from the ground up.
             We improve them, refine them, and make them fit the way our
@@ -71,32 +131,32 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Photo grid */}
+        {/* Photo grid (DB-driven, falls back to placeholders if needed) */}
         <div className="grid grid-cols-3 grid-rows-2 gap-[3px] mb-20 h-[560px]">
           {/* eslint-disable @next/next/no-img-element */}
           <img
-            src="https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=900&q=80"
-            alt="Custom kitchen cabinetry"
+            src={galleryUrls[0].src}
+            alt={galleryUrls[0].alt}
             className="row-span-2 h-full w-full object-cover brightness-90 hover:brightness-100 hover:scale-[1.04] transition duration-700"
           />
           <img
-            src="https://images.unsplash.com/photo-1565538810643-b5bdb714032a?w=600&q=80"
-            alt="Cabinet detail"
+            src={galleryUrls[1].src}
+            alt={galleryUrls[1].alt}
             className="h-full w-full object-cover brightness-90 hover:brightness-100 hover:scale-[1.04] transition duration-700"
           />
           <img
-            src="https://images.unsplash.com/photo-1604709177225-055f99402ea3?w=600&q=80"
-            alt="Built-in shelving"
+            src={galleryUrls[2].src}
+            alt={galleryUrls[2].alt}
             className="h-full w-full object-cover brightness-90 hover:brightness-100 hover:scale-[1.04] transition duration-700"
           />
           <img
-            src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600&q=80"
-            alt="Interior renovation"
+            src={galleryUrls[3].src}
+            alt={galleryUrls[3].alt}
             className="h-full w-full object-cover brightness-90 hover:brightness-100 hover:scale-[1.04] transition duration-700"
           />
           <img
-            src="https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&q=80"
-            alt="Wood detail work"
+            src={galleryUrls[4].src}
+            alt={galleryUrls[4].alt}
             className="h-full w-full object-cover brightness-90 hover:brightness-100 hover:scale-[1.04] transition duration-700"
           />
           {/* eslint-enable @next/next/no-img-element */}
@@ -194,64 +254,52 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* TESTIMONIALS */}
-      <section
-        id="testimonials"
-        className="bg-charcoal-700/40 px-6 md:px-16 py-24"
-      >
-        <div className="text-center mb-16">
-          <p className="rw-eyebrow">What Clients Say</p>
-          <h2 className="rw-display mt-4 text-3xl md:text-5xl text-charcoal-50">
-            Built to earn a reputation.
-          </h2>
-        </div>
+      {/* TESTIMONIALS — DB-driven, hidden if none visible */}
+      {testimonials.length > 0 ? (
+        <section
+          id="testimonials"
+          className="bg-charcoal-700/40 px-6 md:px-16 py-24"
+        >
+          <div className="text-center mb-16">
+            <p className="rw-eyebrow">What Clients Say</p>
+            <h2 className="rw-display mt-4 text-3xl md:text-5xl text-charcoal-50">
+              Built to earn a reputation.
+            </h2>
+          </div>
 
-        <div className="grid md:grid-cols-3 gap-px bg-gold-500/10">
-          {[
-            {
-              quote:
-                "Colin transformed our kitchen into something we never thought possible. The attention to detail in every cabinet door, every drawer — it’s clear this is someone who genuinely cares about the work.",
-              author: "Michael & Sarah T.",
-              location: "Wilmette, IL",
-            },
-            {
-              quote:
-                "We’ve worked with contractors before who cut corners the moment you turn your back. Colin is different. He found issues we didn’t even know to look for and fixed them the right way.",
-              author: "James R.",
-              location: "Evanston, IL",
-            },
-            {
-              quote:
-                "The built-ins in our living room look like they’ve always been there. The fit, the finish, the way he matched the existing trim — exceptional craftsmanship. We get compliments every week.",
-              author: "Laura & David M.",
-              location: "Winnetka, IL",
-            },
-          ].map((t) => (
-            <figure
-              key={t.author}
-              className="bg-charcoal-700/40 px-10 py-12"
-            >
-              <div
-                aria-hidden
-                className="text-gold-500 text-xs tracking-[4px] mb-6"
+          <div className="grid md:grid-cols-3 gap-px bg-gold-500/10">
+            {testimonials.map((t) => (
+              <figure
+                key={t.id}
+                className="bg-charcoal-700/40 px-10 py-12"
               >
-                ★★★★★
-              </div>
-              <blockquote className="font-display italic text-lg text-charcoal-200 leading-[1.7]">
-                &ldquo;{t.quote}&rdquo;
-              </blockquote>
-              <figcaption className="mt-7">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gold-500/80">
-                  {t.author}
-                </p>
-                <p className="mt-1 text-[11px] tracking-[0.1em] text-charcoal-400">
-                  {t.location}
-                </p>
-              </figcaption>
-            </figure>
-          ))}
-        </div>
-      </section>
+                <div
+                  aria-hidden
+                  className="text-gold-500 text-xs tracking-[4px] mb-6"
+                >
+                  {"★".repeat(t.star_rating)}
+                  <span className="text-charcoal-600">
+                    {"★".repeat(5 - t.star_rating)}
+                  </span>
+                </div>
+                <blockquote className="font-display italic text-lg text-charcoal-200 leading-[1.7]">
+                  &ldquo;{t.quote}&rdquo;
+                </blockquote>
+                <figcaption className="mt-7">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gold-500/80">
+                    {t.client_name}
+                  </p>
+                  {t.location ? (
+                    <p className="mt-1 text-[11px] tracking-[0.1em] text-charcoal-400">
+                      {t.location}
+                    </p>
+                  ) : null}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* FOUNDER */}
       <section
@@ -281,7 +329,7 @@ export default function HomePage() {
             &ldquo;If it&rsquo;s worth doing, it&rsquo;s worth building right.&rdquo;
           </h2>
           <p className="mt-10 font-display italic text-xl text-charcoal-200 leading-[1.65]">
-            Roach Wood was built on pride, craftsmanship, and family influence.
+            Roachwood was built on pride, craftsmanship, and family influence.
           </p>
           <div className="mt-8 space-y-5 text-[15px] text-charcoal-300 leading-[1.9]">
             <p>
@@ -323,7 +371,7 @@ export default function HomePage() {
               Colin Roach
             </p>
             <p className="mt-1.5 text-[10px] font-medium uppercase tracking-[0.22em] text-gold-500/70">
-              Founder, Roach Wood
+              Founder, Roachwood
             </p>
           </div>
         </div>
@@ -342,7 +390,7 @@ export default function HomePage() {
           <p className="mt-7 text-charcoal-300 leading-[1.85] max-w-md">
             Whether it&rsquo;s a kitchen, custom cabinetry, a deck, or a full
             home update — reach out and let&rsquo;s talk about what you have
-            in mind. We serve Scottsdale and the greater Phoenix area.
+            in mind. We serve {serviceArea}.
           </p>
 
           <div className="mt-12 flex flex-col gap-7">
@@ -351,10 +399,10 @@ export default function HomePage() {
                 Direct Line
               </p>
               <a
-                href="tel:+15551234567"
+                href={phoneHref}
                 className="font-display text-xl text-charcoal-200 hover:text-gold-500 transition"
               >
-                (555) 123-4567
+                {phone}
               </a>
             </div>
             <div>
@@ -362,10 +410,10 @@ export default function HomePage() {
                 Email
               </p>
               <a
-                href="mailto:colin@roachwood.com"
+                href={`mailto:${email}`}
                 className="font-display text-xl text-charcoal-200 hover:text-gold-500 transition"
               >
-                colin@roachwood.com
+                {email}
               </a>
             </div>
             <div>
@@ -381,7 +429,7 @@ export default function HomePage() {
                 Service Area
               </p>
               <span className="font-display text-xl text-charcoal-200">
-                Scottsdale &amp; Greater Phoenix Area
+                {serviceArea}
               </span>
             </div>
           </div>

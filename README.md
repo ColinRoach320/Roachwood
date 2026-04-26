@@ -1,6 +1,6 @@
-# Roach Wood
+# Roachwood
 
-Marketing site, admin portal, and client portal for **Roach Wood** — a fine-carpentry / contractor business.
+Marketing site, admin portal, and client portal for **Roachwood** — a fine-carpentry / contractor business.
 
 Built with **Next.js 15 (App Router)**, **TypeScript**, **Tailwind CSS**, and **Supabase** (Auth, Postgres + RLS, Storage).
 

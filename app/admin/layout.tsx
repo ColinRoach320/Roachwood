@@ -7,6 +7,7 @@ import {
   Receipt,
   Wallet,
   ClipboardList,
+  Globe,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/portal-shell/Sidebar";
@@ -20,6 +21,7 @@ const nav = [
   { href: "/admin/invoices", label: "Invoices", icon: Receipt },
   { href: "/admin/expenses", label: "Expenses", icon: Wallet },
   { href: "/admin/documents", label: "Documents", icon: FileText },
+  { href: "/admin/content", label: "Site Content", icon: Globe },
 ];
 
 export default async function AdminLayout({

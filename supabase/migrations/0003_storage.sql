@@ -1,4 +1,4 @@
--- Roach Wood — Storage bucket for documents.
+-- Roachwood — Storage bucket for documents.
 -- Run after 0001 and 0002. The bucket itself is private (admin uploads via
 -- service role; clients fetch via signed URLs from the server).
 

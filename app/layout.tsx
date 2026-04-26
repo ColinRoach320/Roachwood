@@ -17,8 +17,8 @@ const display = Playfair_Display({
 
 export const metadata: Metadata = {
   title: {
-    default: "Roach Wood — Custom Cabinetry & Home Improvements",
-    template: "%s | Roach Wood",
+    default: "Roachwood — Custom Cabinetry & Home Improvements",
+    template: "%s | Roachwood",
   },
   description:
     "Custom cabinetry and high-quality home improvements in Scottsdale, AZ. Built right. Made to last.",

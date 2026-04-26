@@ -7,7 +7,7 @@ export function MarketingFooter() {
       <div className="mx-auto max-w-6xl px-6 py-12 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <Logo />
         <p className="text-xs tracking-[0.12em] text-charcoal-400">
-          © {new Date().getFullYear()} Roach Wood. All rights reserved.
+          © {new Date().getFullYear()} Roachwood. All rights reserved.
         </p>
         <div className="flex gap-7">
           <a

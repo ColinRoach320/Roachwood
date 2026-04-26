@@ -149,6 +149,56 @@ export interface Expense {
   created_at: string;
 }
 
+// ── Phase 2 content management ───────────────────────────────────────────────
+
+export type ServiceType = "kitchen" | "cabinetry" | "deck" | "interior" | "other";
+export type SocialPlatform = "instagram" | "facebook" | "houzz" | "other";
+export type SocialPostStatus = "draft" | "posted";
+
+export interface Testimonial {
+  id: string;
+  client_name: string;
+  location: string | null;
+  quote: string;
+  star_rating: number;
+  project_type: string | null;
+  visible: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface GalleryItem {
+  id: string;
+  title: string;
+  description: string | null;
+  service_type: ServiceType | null;
+  storage_path: string;
+  visible: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface SocialPost {
+  id: string;
+  job_id: string | null;
+  platform: SocialPlatform;
+  caption: string;
+  hashtags: string | null;
+  storage_path: string | null;
+  status: SocialPostStatus;
+  posted_at: string | null;
+  created_at: string;
+}
+
+export interface SiteSettings {
+  id: number;
+  phone: string | null;
+  email: string | null;
+  service_area: string | null;
+  tagline: string | null;
+  updated_at: string;
+}
+
 /**
  * Minimal `Database` type for typed Supabase clients. Tables are typed as
  * `Row`/`Insert`/`Update` of the same shape; tighten when generating types.
@@ -156,15 +206,19 @@ export interface Expense {
 export type Database = {
   public: {
     Tables: {
-      profiles:    { Row: Profile;     Insert: Partial<Profile> & { id: string }; Update: Partial<Profile> };
-      clients:     { Row: Client;      Insert: Partial<Client>  & { contact_name: string }; Update: Partial<Client> };
-      jobs:        { Row: Job;         Insert: Partial<Job>     & { client_id: string; title: string }; Update: Partial<Job> };
-      job_updates: { Row: JobUpdate;   Insert: Partial<JobUpdate> & { job_id: string; body: string }; Update: Partial<JobUpdate> };
-      approvals:   { Row: Approval;    Insert: Partial<Approval>  & { job_id: string; title: string }; Update: Partial<Approval> };
-      documents:   { Row: DocumentRow; Insert: Partial<DocumentRow> & { name: string; storage_path: string }; Update: Partial<DocumentRow> };
-      estimates:   { Row: Estimate;    Insert: Partial<Estimate>  & { job_id: string; title: string }; Update: Partial<Estimate> };
-      invoices:    { Row: Invoice;     Insert: Partial<Invoice>   & { job_id: string; title: string }; Update: Partial<Invoice> };
-      expenses:    { Row: Expense;     Insert: Partial<Expense>   & { job_id: string; amount: number }; Update: Partial<Expense> };
+      profiles:      { Row: Profile;     Insert: Partial<Profile> & { id: string }; Update: Partial<Profile> };
+      clients:       { Row: Client;      Insert: Partial<Client>  & { contact_name: string }; Update: Partial<Client> };
+      jobs:          { Row: Job;         Insert: Partial<Job>     & { client_id: string; title: string }; Update: Partial<Job> };
+      job_updates:   { Row: JobUpdate;   Insert: Partial<JobUpdate> & { job_id: string; body: string }; Update: Partial<JobUpdate> };
+      approvals:     { Row: Approval;    Insert: Partial<Approval>  & { job_id: string; title: string }; Update: Partial<Approval> };
+      documents:     { Row: DocumentRow; Insert: Partial<DocumentRow> & { name: string; storage_path: string }; Update: Partial<DocumentRow> };
+      estimates:     { Row: Estimate;    Insert: Partial<Estimate>  & { job_id: string; title: string }; Update: Partial<Estimate> };
+      invoices:      { Row: Invoice;     Insert: Partial<Invoice>   & { job_id: string; title: string }; Update: Partial<Invoice> };
+      expenses:      { Row: Expense;     Insert: Partial<Expense>   & { job_id: string; amount: number }; Update: Partial<Expense> };
+      testimonials:  { Row: Testimonial; Insert: Partial<Testimonial> & { client_name: string; quote: string }; Update: Partial<Testimonial> };
+      gallery_items: { Row: GalleryItem; Insert: Partial<GalleryItem> & { title: string; storage_path: string }; Update: Partial<GalleryItem> };
+      social_posts:  { Row: SocialPost;  Insert: Partial<SocialPost>  & { platform: SocialPlatform; caption: string }; Update: Partial<SocialPost> };
+      site_settings: { Row: SiteSettings; Insert: Partial<SiteSettings>; Update: Partial<SiteSettings> };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

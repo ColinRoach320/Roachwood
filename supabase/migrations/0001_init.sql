@@ -1,4 +1,4 @@
--- Roach Wood — initial schema
+-- Roachwood — initial schema
 -- Run via Supabase SQL editor or `supabase db push`.
 
 create extension if not exists "uuid-ossp";
