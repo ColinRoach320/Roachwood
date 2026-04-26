@@ -1,36 +1,67 @@
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
+import Link from "next/link";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/Card";
 import { JobStatusBadge } from "@/components/ui/Badge";
+import { QuickActionsBar } from "@/components/admin/QuickActionsBar";
 import { createClient } from "@/lib/supabase/server";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import type { Job, Client } from "@/lib/types";
+import { formatCurrency, formatDate, formatMoney } from "@/lib/utils";
+import type {
+  Job,
+  Approval,
+  Estimate,
+  Invoice,
+  JobUpdate,
+} from "@/lib/types";
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
 
-  const [jobsRes, clientsRes, pendingApprovalsRes] = await Promise.all([
+  const [
+    jobsRes,
+    pendingApprovalsRes,
+    pendingEstimatesRes,
+    unpaidInvoicesRes,
+    recentUpdatesRes,
+  ] = await Promise.all([
     supabase
       .from("jobs")
-      .select("id, title, status, estimated_value, end_date, client_id, created_at, description, start_date, address, updated_at")
-      .order("created_at", { ascending: false })
-      .limit(8),
-    supabase
-      .from("clients")
-      .select("id, contact_name, company_name, profile_id, email, phone, address, notes, created_at")
-      .order("created_at", { ascending: false })
-      .limit(5),
+      .select("*")
+      .order("created_at", { ascending: false }),
     supabase
       .from("approvals")
-      .select("id, title, status, job_id, created_at")
-      .eq("status", "pending"),
+      .select("id, title, job_id, created_at")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("estimates")
+      .select("id, title, job_id, total, status, created_at")
+      .eq("status", "sent")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("invoices")
+      .select("id, title, job_id, total, amount_paid, status, due_date")
+      .in("status", ["sent", "overdue"])
+      .order("due_date", { ascending: true }),
+    supabase
+      .from("job_updates")
+      .select("id, body, job_id, created_at, visible_to_client")
+      .order("created_at", { ascending: false })
+      .limit(8),
   ]);
 
   const jobs = (jobsRes.data ?? []) as Job[];
-  const clients = (clientsRes.data ?? []) as Client[];
-  const pendingApprovals = pendingApprovalsRes.data?.length ?? 0;
+  const pendingApprovals = (pendingApprovalsRes.data ?? []) as Approval[];
+  const pendingEstimates = (pendingEstimatesRes.data ?? []) as Estimate[];
+  const unpaidInvoices = (unpaidInvoicesRes.data ?? []) as Invoice[];
+  const recentUpdates = (recentUpdatesRes.data ?? []) as JobUpdate[];
 
   const activeJobs = jobs.filter(
     (j) => j.status === "approved" || j.status === "in_progress",
-  ).length;
+  );
   const pipelineValue = jobs.reduce(
     (sum, j) =>
       j.status === "quoted" || j.status === "approved"
@@ -38,102 +69,288 @@ export default async function AdminDashboardPage() {
         : sum,
     0,
   );
+  const outstandingDollars = unpaidInvoices.reduce(
+    (s, i) => s + Number(i.total ?? 0) - Number(i.amount_paid ?? 0),
+    0,
+  );
+
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
+  const jobMap = new Map(jobs.map((j) => [j.id, j]));
 
   return (
-    <div className="space-y-10">
-      <div>
-        <p className="rw-eyebrow">Dashboard</p>
-        <h1 className="rw-display mt-2 text-3xl">Workshop Overview</h1>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <Stat label="Active jobs" value={activeJobs.toString()} />
-        <Stat label="Pending client approvals" value={pendingApprovals.toString()} />
-        <Stat label="Pipeline value" value={formatCurrency(pipelineValue)} />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <div>
-                <CardTitle>Recent jobs</CardTitle>
-                <CardDescription>Latest 8 jobs across all clients.</CardDescription>
-              </div>
-            </CardHeader>
-            <div className="overflow-hidden rounded-lg border border-charcoal-700">
-              <table className="w-full text-sm">
-                <thead className="bg-charcoal-900/60">
-                  <tr className="text-left text-[10px] uppercase tracking-[0.18em] text-charcoal-400">
-                    <th className="px-4 py-3 font-medium">Title</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Due</th>
-                    <th className="px-4 py-3 font-medium text-right">Value</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-charcoal-700">
-                  {jobs.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-charcoal-400">
-                        No jobs yet — run the migration and add a client.
-                      </td>
-                    </tr>
-                  ) : (
-                    jobs.map((j) => (
-                      <tr key={j.id} className="hover:bg-charcoal-700/30 transition">
-                        <td className="px-4 py-3 text-charcoal-100">{j.title}</td>
-                        <td className="px-4 py-3"><JobStatusBadge status={j.status} /></td>
-                        <td className="px-4 py-3 text-charcoal-300">{formatDate(j.end_date)}</td>
-                        <td className="px-4 py-3 text-right text-charcoal-200">{formatCurrency(j.estimated_value)}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+    <div className="space-y-8">
+      {/* Today header */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="rw-eyebrow">Today</p>
+          <h1 className="rw-display mt-2 text-3xl">{today}</h1>
+          <p className="mt-1 text-sm text-charcoal-400">Scottsdale, AZ</p>
         </div>
+        <div className="flex flex-wrap gap-3 text-sm text-charcoal-300">
+          <Stat label="Active jobs" value={activeJobs.length.toString()} />
+          <Stat label="Pipeline" value={formatCurrency(pipelineValue)} />
+          <Stat
+            label="Outstanding"
+            value={formatCurrency(outstandingDollars)}
+            tone={outstandingDollars > 0 ? "red" : "neutral"}
+          />
+        </div>
+      </div>
 
+      <QuickActionsBar />
+
+      {/* Outstanding action cards (red) */}
+      {(pendingApprovals.length > 0 ||
+        pendingEstimates.length > 0 ||
+        unpaidInvoices.length > 0) && (
+        <section className="grid gap-4 md:grid-cols-3">
+          <ActionCard
+            title="Pending approvals"
+            count={pendingApprovals.length}
+            href="/admin/jobs"
+            empty="All approvals are resolved."
+          >
+            {pendingApprovals.slice(0, 3).map((a) => (
+              <Link
+                key={a.id}
+                href={`/admin/jobs/${a.job_id}`}
+                className="block truncate text-sm text-charcoal-100 hover:text-gold-400"
+              >
+                {a.title}
+              </Link>
+            ))}
+          </ActionCard>
+          <ActionCard
+            title="Estimates awaiting client"
+            count={pendingEstimates.length}
+            href="/admin/estimates?status=sent"
+            empty="No estimates waiting on a decision."
+          >
+            {pendingEstimates.slice(0, 3).map((e) => (
+              <Link
+                key={e.id}
+                href={`/admin/estimates/${e.id}`}
+                className="flex items-center justify-between gap-2 text-sm hover:text-gold-400"
+              >
+                <span className="truncate text-charcoal-100">{e.title}</span>
+                <span className="shrink-0 text-charcoal-400 tabular-nums">
+                  {formatMoney(e.total)}
+                </span>
+              </Link>
+            ))}
+          </ActionCard>
+          <ActionCard
+            title="Unpaid invoices"
+            count={unpaidInvoices.length}
+            href="/admin/invoices?status=sent"
+            empty="No outstanding invoices."
+          >
+            {unpaidInvoices.slice(0, 3).map((i) => {
+              const due =
+                Number(i.total ?? 0) - Number(i.amount_paid ?? 0);
+              return (
+                <Link
+                  key={i.id}
+                  href={`/admin/invoices/${i.id}`}
+                  className="flex items-center justify-between gap-2 text-sm hover:text-gold-400"
+                >
+                  <span className="truncate text-charcoal-100">
+                    {i.title}
+                  </span>
+                  <span className="shrink-0 text-red-300 tabular-nums">
+                    {formatMoney(due)}
+                  </span>
+                </Link>
+              );
+            })}
+          </ActionCard>
+        </section>
+      )}
+
+      {/* Active jobs */}
+      <section>
+        <Card className="p-0 overflow-hidden">
+          <div className="flex items-end justify-between gap-3 px-6 pt-6">
+            <div>
+              <CardTitle>Active jobs</CardTitle>
+              <CardDescription>
+                Tap a job to open the workshop view.
+              </CardDescription>
+            </div>
+            <Link
+              href="/admin/jobs"
+              className="text-xs uppercase tracking-[0.2em] text-gold-400 hover:text-gold-300"
+            >
+              See all →
+            </Link>
+          </div>
+          {activeJobs.length === 0 ? (
+            <p className="px-6 py-10 text-sm text-charcoal-400">
+              No active jobs right now.
+            </p>
+          ) : (
+            <ul className="mt-4 divide-y divide-charcoal-700 border-t border-charcoal-700">
+              {activeJobs.slice(0, 8).map((j) => (
+                <li key={j.id}>
+                  <Link
+                    href={`/admin/jobs/${j.id}`}
+                    className="flex items-center justify-between gap-3 px-6 py-4 hover:bg-charcoal-700/30"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-charcoal-100">{j.title}</p>
+                      <p className="text-xs text-charcoal-400">
+                        {formatDate(j.start_date)}
+                        {j.end_date ? ` → ${formatDate(j.end_date)}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <span className="hidden text-charcoal-300 tabular-nums sm:inline">
+                        {formatCurrency(j.estimated_value)}
+                      </span>
+                      <JobStatusBadge status={j.status} />
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </section>
+
+      {/* Activity feed */}
+      <section>
         <Card>
           <CardHeader>
             <div>
-              <CardTitle>Recent clients</CardTitle>
-              <CardDescription>Most recent additions.</CardDescription>
+              <CardTitle>Recent activity</CardTitle>
+              <CardDescription>
+                Last few notes posted across all jobs.
+              </CardDescription>
             </div>
           </CardHeader>
-          <ul className="space-y-3">
-            {clients.length === 0 ? (
-              <li className="text-charcoal-400 text-sm">No clients yet.</li>
-            ) : (
-              clients.map((c) => (
-                <li
-                  key={c.id}
-                  className="flex items-center justify-between rounded-md border border-charcoal-700 bg-charcoal-900/40 px-3 py-2.5"
-                >
-                  <div>
-                    <p className="text-charcoal-100">{c.contact_name}</p>
-                    {c.company_name ? (
-                      <p className="text-xs text-charcoal-400">{c.company_name}</p>
-                    ) : null}
-                  </div>
-                  <span className="text-[10px] uppercase tracking-[0.16em] text-charcoal-500">
-                    {formatDate(c.created_at)}
-                  </span>
-                </li>
-              ))
-            )}
-          </ul>
+          {recentUpdates.length === 0 ? (
+            <p className="text-sm text-charcoal-400">No activity yet.</p>
+          ) : (
+            <ol className="space-y-4">
+              {recentUpdates.map((u) => {
+                const job = jobMap.get(u.job_id);
+                return (
+                  <li
+                    key={u.id}
+                    className="flex gap-3 border-b border-charcoal-700/60 pb-3 last:border-0"
+                  >
+                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-gold-500" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-baseline gap-2 text-[10px] uppercase tracking-[0.18em]">
+                        <span className="text-charcoal-500">
+                          {formatDate(u.created_at)}
+                        </span>
+                        {job ? (
+                          <Link
+                            href={`/admin/jobs/${job.id}`}
+                            className="text-gold-400 hover:text-gold-300"
+                          >
+                            {job.title}
+                          </Link>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 text-sm text-charcoal-100 line-clamp-2">
+                        {u.body}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
         </Card>
-      </div>
+      </section>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  tone?: "neutral" | "red";
+}) {
   return (
-    <div className="rw-card p-6">
-      <p className="rw-eyebrow">{label}</p>
-      <p className="mt-3 font-display text-3xl text-charcoal-50">{value}</p>
+    <div className="rounded-md border border-charcoal-700 bg-charcoal-800 px-4 py-2">
+      <p className="text-[10px] uppercase tracking-[0.18em] text-charcoal-400">
+        {label}
+      </p>
+      <p
+        className={
+          tone === "red"
+            ? "font-display text-lg text-red-300"
+            : "font-display text-lg text-charcoal-50"
+        }
+      >
+        {value}
+      </p>
     </div>
+  );
+}
+
+function ActionCard({
+  title,
+  count,
+  href,
+  empty,
+  children,
+}: {
+  title: string;
+  count: number;
+  href: string;
+  empty: string;
+  children: React.ReactNode;
+}) {
+  const has = count > 0;
+  return (
+    <Link
+      href={href}
+      className={
+        has
+          ? "group block rounded-xl border border-red-500/40 bg-red-500/5 p-5 transition hover:border-red-400/60 hover:bg-red-500/10"
+          : "group block rounded-xl border border-charcoal-700 bg-charcoal-800 p-5 transition hover:border-charcoal-600"
+      }
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <p
+          className={
+            has
+              ? "text-[10px] font-semibold uppercase tracking-[0.22em] text-red-300"
+              : "text-[10px] font-semibold uppercase tracking-[0.22em] text-charcoal-400"
+          }
+        >
+          {title}
+        </p>
+        <span
+          className={
+            has
+              ? "font-display text-2xl text-red-200"
+              : "font-display text-2xl text-charcoal-300"
+          }
+        >
+          {count}
+        </span>
+      </div>
+      <div className="mt-3 space-y-1.5">
+        {has ? (
+          children
+        ) : (
+          <p className="text-sm text-charcoal-400">{empty}</p>
+        )}
+      </div>
+    </Link>
   );
 }

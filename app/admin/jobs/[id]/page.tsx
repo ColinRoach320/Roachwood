@@ -1,6 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Pencil, Plus, Receipt, Wallet, ClipboardList, FileText } from "lucide-react";
+import {
+  Pencil,
+  Plus,
+  Receipt,
+  Wallet,
+  ClipboardList,
+  FileText,
+  Camera,
+  Lightbulb,
+  MessageSquare,
+} from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import {
@@ -10,8 +20,13 @@ import {
   ExpenseCategoryBadge,
 } from "@/components/ui/Badge";
 import { JobUpdateForm } from "@/components/admin/JobUpdateForm";
+import { PhotoUploadButton } from "@/components/admin/PhotoUploadButton";
+import { MessageThread } from "@/components/admin/MessageThread";
 import { addJobUpdate } from "../actions";
-import { createClient } from "@/lib/supabase/server";
+import { uploadJobPhoto } from "./photo-actions";
+import { sendMessage } from "./message-actions";
+import { getDesignIdeaSignedUrl } from "@/app/portal/jobs/[id]/design-ideas-actions";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDate, formatMoney } from "@/lib/utils";
 import type {
   Job,
@@ -21,6 +36,9 @@ import type {
   Invoice,
   Expense,
   DocumentRow,
+  DesignIdea,
+  Message,
+  Profile,
 } from "@/lib/types";
 
 interface PageProps {
@@ -39,6 +57,10 @@ export default async function JobDetailPage({ params }: PageProps) {
 
   if (!job) notFound();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   const [
     { data: client },
     { data: updates },
@@ -46,6 +68,8 @@ export default async function JobDetailPage({ params }: PageProps) {
     { data: invoices },
     { data: expenses },
     { data: documents },
+    { data: designIdeas },
+    { data: messages },
   ] = await Promise.all([
     supabase
       .from("clients")
@@ -77,7 +101,69 @@ export default async function JobDetailPage({ params }: PageProps) {
       .select("*")
       .eq("job_id", id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("design_ideas")
+      .select("*")
+      .eq("job_id", id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("messages")
+      .select("*")
+      .eq("job_id", id)
+      .order("created_at", { ascending: true }),
   ]);
+
+  // Split documents into photos vs files using the new kind column.
+  const allDocs = (documents ?? []) as DocumentRow[];
+  const photos = allDocs.filter((d) => d.kind === "photo");
+  const files = allDocs.filter((d) => d.kind !== "photo");
+
+  const ideas = (designIdeas ?? []) as DesignIdea[];
+  const ideaUrls = await Promise.all(
+    ideas.map(async (i) =>
+      i.storage_path ? await getDesignIdeaSignedUrl(i.storage_path) : null,
+    ),
+  );
+
+  // Pre-sign photos so the admin page can render them without exposing
+  // the service-role key to the client.
+  const adminClient = createAdminClient();
+  const photoUrls = await Promise.all(
+    photos.map(async (p) => {
+      const { data } = await adminClient.storage
+        .from("documents")
+        .createSignedUrl(p.storage_path, 60 * 30);
+      return data?.signedUrl ?? null;
+    }),
+  );
+
+  // Resolve sender names for the message thread.
+  const senderIds = Array.from(
+    new Set(((messages ?? []) as Message[]).map((m) => m.sender_id)),
+  );
+  const { data: senders } = senderIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", senderIds)
+    : { data: [] };
+  const senderMap = new Map(
+    (senders ?? []).map((p: Pick<Profile, "id" | "full_name" | "email">) => [
+      p.id,
+      p,
+    ]),
+  );
+  const threadMessages = ((messages ?? []) as Message[]).map((m) => {
+    const s = senderMap.get(m.sender_id);
+    return {
+      id: m.id,
+      body: m.body,
+      created_at: m.created_at,
+      sender_id: m.sender_id,
+      sender_name: s?.full_name ?? s?.email ?? null,
+      is_me: m.sender_id === user?.id,
+    };
+  });
 
   const expenseTotal = (expenses ?? []).reduce(
     (sum, e) => sum + Number(e.amount ?? 0),
@@ -93,6 +179,8 @@ export default async function JobDetailPage({ params }: PageProps) {
   );
 
   const updateAction = addJobUpdate.bind(null, id);
+  const photoAction = uploadJobPhoto.bind(null, id);
+  const messageAction = sendMessage.bind(null, id);
 
   return (
     <div className="space-y-8">
@@ -347,7 +435,141 @@ export default async function JobDetailPage({ params }: PageProps) {
         </table>
       </Card>
 
-      {/* Documents */}
+      {/* Progress photos */}
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>
+              <span className="inline-flex items-center gap-2">
+                <Camera className="h-5 w-5 text-gold-400" />
+                Progress photos
+              </span>
+            </CardTitle>
+            <CardDescription>
+              {photos.length} photo{photos.length === 1 ? "" : "s"} on this job.
+            </CardDescription>
+          </div>
+          <PhotoUploadButton action={photoAction} />
+        </CardHeader>
+        {photos.length === 0 ? (
+          <p className="text-sm text-charcoal-500">
+            No photos yet. The big button above pulls up the camera on a phone.
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+            {photos.map((p, i) => (
+              <div
+                key={p.id}
+                className="relative aspect-square overflow-hidden rounded-md border border-charcoal-700 bg-charcoal-900"
+              >
+                {photoUrls[i] ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={photoUrls[i] as string}
+                    alt={p.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="flex h-full items-center justify-center text-[10px] uppercase tracking-[0.18em] text-charcoal-500">
+                    Unavailable
+                  </span>
+                )}
+                <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-charcoal-950/80 to-transparent px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-charcoal-100">
+                  {formatDate(p.created_at)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Design ideas (read-only here; client adds via portal) */}
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>
+              <span className="inline-flex items-center gap-2">
+                <Lightbulb className="h-5 w-5 text-gold-400" />
+                Design ideas
+              </span>
+            </CardTitle>
+            <CardDescription>
+              Inspiration the client has shared. They add these from their portal.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        {ideas.length === 0 ? (
+          <p className="text-sm text-charcoal-500">
+            Nothing shared yet.
+          </p>
+        ) : (
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {ideas.map((idea, i) => {
+              const src = idea.storage_path ? ideaUrls[i] : idea.image_url;
+              return (
+                <li
+                  key={idea.id}
+                  className="flex gap-3 rounded-lg border border-charcoal-700 bg-charcoal-900/40 p-3"
+                >
+                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-md border border-charcoal-700 bg-charcoal-900">
+                    {src ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={src as string}
+                        alt={idea.title ?? "Design idea"}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-full items-center justify-center text-[10px] uppercase tracking-[0.16em] text-charcoal-500">
+                        No image
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    {idea.title ? (
+                      <p className="font-medium text-charcoal-50">
+                        {idea.title}
+                      </p>
+                    ) : null}
+                    {idea.notes ? (
+                      <p className="mt-1 text-sm text-charcoal-300 line-clamp-3">
+                        {idea.notes}
+                      </p>
+                    ) : null}
+                    <p className="mt-2 text-[10px] uppercase tracking-[0.16em] text-charcoal-500">
+                      {formatDate(idea.created_at)}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
+
+      {/* Messages */}
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>
+              <span className="inline-flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-gold-400" />
+                Messages
+              </span>
+            </CardTitle>
+            <CardDescription>
+              Two-way thread with the client on this job.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <MessageThread
+          messages={threadMessages}
+          action={messageAction}
+          emptyHint="No messages yet. Send the first one to kick off the thread."
+        />
+      </Card>
+
+      {/* Documents (PDFs/contracts; photos live above) */}
       <Card>
         <CardHeader>
           <div>
@@ -358,16 +580,16 @@ export default async function JobDetailPage({ params }: PageProps) {
               </span>
             </CardTitle>
             <CardDescription>
-              {(documents ?? []).length} file{(documents ?? []).length === 1 ? "" : "s"} attached.
-              Upload UI ships in a follow-up.
+              {files.length} file{files.length === 1 ? "" : "s"} attached. Upload
+              from <Link href="/admin/documents" className="rw-link">/admin/documents</Link>.
             </CardDescription>
           </div>
         </CardHeader>
-        {(documents ?? []).length === 0 ? (
+        {files.length === 0 ? (
           <p className="text-sm text-charcoal-500">No documents yet.</p>
         ) : (
           <ul className="space-y-2">
-            {(documents as DocumentRow[]).map((d) => (
+            {files.map((d) => (
               <li
                 key={d.id}
                 className="flex items-center justify-between rounded-md border border-charcoal-700 bg-charcoal-900/40 px-3 py-2 text-sm"

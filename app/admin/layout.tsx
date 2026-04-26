@@ -8,10 +8,12 @@ import {
   Wallet,
   ClipboardList,
   Globe,
+  Plus,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/portal-shell/Sidebar";
 import { Topbar } from "@/components/portal-shell/Topbar";
+import { BottomNav } from "@/components/portal-shell/BottomNav";
 
 const nav = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -22,6 +24,15 @@ const nav = [
   { href: "/admin/expenses", label: "Expenses", icon: Wallet },
   { href: "/admin/documents", label: "Documents", icon: FileText },
   { href: "/admin/content", label: "Site Content", icon: Globe },
+];
+
+// Mobile bottom nav: the five things Colin reaches for on his phone.
+const mobileNav = [
+  { href: "/admin", label: "Today", icon: LayoutDashboard },
+  { href: "/admin/jobs", label: "Jobs", icon: Hammer },
+  { href: "/admin/expenses/new", label: "Log", icon: Plus },
+  { href: "/admin/invoices", label: "Bills", icon: Receipt },
+  { href: "/admin/content", label: "Site", icon: Globe },
 ];
 
 export default async function AdminLayout({
@@ -46,12 +57,15 @@ export default async function AdminLayout({
   return (
     <div className="min-h-screen bg-charcoal-900">
       <Topbar user={profile ?? { email: user.email }} scope="Staff" />
-      <div className="mx-auto grid max-w-[1400px] grid-cols-[260px_1fr]">
-        <aside className="border-r border-charcoal-800 min-h-[calc(100vh-65px)]">
+      <div className="mx-auto grid max-w-[1400px] lg:grid-cols-[260px_1fr]">
+        <aside className="hidden border-r border-charcoal-800 lg:block lg:min-h-[calc(100vh-65px)]">
           <Sidebar items={nav} eyebrow="Workshop" />
         </aside>
-        <main className="p-8">{children}</main>
+        <main className="px-4 py-6 pb-24 sm:px-6 lg:p-8 lg:pb-8">
+          {children}
+        </main>
       </div>
+      <BottomNav items={mobileNav} />
     </div>
   );
 }

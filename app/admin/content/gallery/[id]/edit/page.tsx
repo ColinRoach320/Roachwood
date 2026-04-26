@@ -14,7 +14,7 @@ export default async function EditGalleryPage({ params }: PageProps) {
   const { id } = await params;
   const supabase = await createClient();
   const { data: item } = await supabase
-    .from("gallery_items")
+    .from("gallery_photos")
     .select("*")
     .eq("id", id)
     .maybeSingle<GalleryItem>();

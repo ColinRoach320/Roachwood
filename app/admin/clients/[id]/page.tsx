@@ -4,6 +4,7 @@ import { Pencil, Plus, Mail, Phone, MapPin } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { JobStatusBadge } from "@/components/ui/Badge";
+import { PortalInviteButton } from "@/components/admin/PortalInviteButton";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Client, Job } from "@/lib/types";
@@ -70,17 +71,35 @@ export default async function ClientDetailPage({ params }: PageProps) {
           <ul className="space-y-3 text-sm">
             <li className="flex items-start gap-2.5 text-charcoal-200">
               <Mail className="mt-0.5 h-4 w-4 text-charcoal-500" />
-              {client.email ?? <span className="text-charcoal-500">—</span>}
+              {client.email ? (
+                <a href={`mailto:${client.email}`} className="rw-link">
+                  {client.email}
+                </a>
+              ) : (
+                <span className="text-charcoal-500">—</span>
+              )}
             </li>
             <li className="flex items-start gap-2.5 text-charcoal-200">
               <Phone className="mt-0.5 h-4 w-4 text-charcoal-500" />
-              {client.phone ?? <span className="text-charcoal-500">—</span>}
+              {client.phone ? (
+                <a
+                  href={`tel:${client.phone.replace(/[^0-9+]/g, "")}`}
+                  className="rw-link"
+                >
+                  {client.phone}
+                </a>
+              ) : (
+                <span className="text-charcoal-500">—</span>
+              )}
             </li>
             <li className="flex items-start gap-2.5 text-charcoal-200">
               <MapPin className="mt-0.5 h-4 w-4 text-charcoal-500" />
               {client.address ?? <span className="text-charcoal-500">—</span>}
             </li>
           </ul>
+          <div className="mt-5 border-t border-charcoal-700 pt-4">
+            <PortalInviteButton hasEmail={!!client.email} />
+          </div>
         </Card>
 
         <Card className="lg:col-span-2">

@@ -78,6 +78,7 @@ export interface DocumentRow {
   storage_path: string;
   visible_to_client: boolean;
   uploaded_by: string | null;
+  kind: "document" | "photo";
   created_at: string;
 }
 
@@ -199,6 +200,26 @@ export interface SiteSettings {
   updated_at: string;
 }
 
+export interface DesignIdea {
+  id: string;
+  job_id: string;
+  uploaded_by: string | null;
+  title: string | null;
+  notes: string | null;
+  image_url: string | null;
+  storage_path: string | null;
+  created_at: string;
+}
+
+export interface Message {
+  id: string;
+  job_id: string;
+  sender_id: string;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+}
+
 /**
  * Minimal `Database` type for typed Supabase clients. Tables are typed as
  * `Row`/`Insert`/`Update` of the same shape; tighten when generating types.
@@ -216,7 +237,9 @@ export type Database = {
       invoices:      { Row: Invoice;     Insert: Partial<Invoice>   & { job_id: string; title: string }; Update: Partial<Invoice> };
       expenses:      { Row: Expense;     Insert: Partial<Expense>   & { job_id: string; amount: number }; Update: Partial<Expense> };
       testimonials:  { Row: Testimonial; Insert: Partial<Testimonial> & { client_name: string; quote: string }; Update: Partial<Testimonial> };
-      gallery_items: { Row: GalleryItem; Insert: Partial<GalleryItem> & { title: string; storage_path: string }; Update: Partial<GalleryItem> };
+      gallery_photos: { Row: GalleryItem; Insert: Partial<GalleryItem> & { title: string; storage_path: string }; Update: Partial<GalleryItem> };
+      design_ideas:   { Row: DesignIdea; Insert: Partial<DesignIdea> & { job_id: string }; Update: Partial<DesignIdea> };
+      messages:       { Row: Message;    Insert: Partial<Message>    & { job_id: string; sender_id: string; body: string }; Update: Partial<Message> };
       social_posts:  { Row: SocialPost;  Insert: Partial<SocialPost>  & { platform: SocialPlatform; caption: string }; Update: Partial<SocialPost> };
       site_settings: { Row: SiteSettings; Insert: Partial<SiteSettings>; Update: Partial<SiteSettings> };
     };

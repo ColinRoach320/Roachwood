@@ -57,7 +57,7 @@ export async function createGalleryItem(
   if (upload.error) return fail(upload.error.message);
 
   const supabase = await createClient();
-  const { error } = await supabase.from("gallery_items").insert({
+  const { error } = await supabase.from("gallery_photos").insert({
     ...meta,
     storage_path: upload.data.path,
   });
@@ -93,7 +93,7 @@ export async function updateGalleryItem(
 
     // Look up the old path so we can clean it up after the row update.
     const { data: prev } = await supabase
-      .from("gallery_items")
+      .from("gallery_photos")
       .select("storage_path")
       .eq("id", id)
       .maybeSingle<{ storage_path: string }>();
@@ -104,7 +104,7 @@ export async function updateGalleryItem(
   }
 
   const { error } = await supabase
-    .from("gallery_items")
+    .from("gallery_photos")
     .update({ ...meta, ...storagePatch })
     .eq("id", id);
   if (error) return fail(error.message);
@@ -118,7 +118,7 @@ export async function toggleGalleryVisibility(
 ): Promise<void> {
   const supabase = await createClient();
   await supabase
-    .from("gallery_items")
+    .from("gallery_photos")
     .update({ visible: !current })
     .eq("id", id);
   bust();
@@ -130,6 +130,6 @@ export async function deleteGalleryItem(
 ): Promise<void> {
   const admin = createAdminClient();
   await admin.storage.from(BUCKET).remove([storagePath]);
-  await admin.from("gallery_items").delete().eq("id", id);
+  await admin.from("gallery_photos").delete().eq("id", id);
   bust();
 }

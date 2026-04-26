@@ -28,7 +28,7 @@ export default async function HomePage() {
       .order("created_at", { ascending: false })
       .limit(3),
     supabase
-      .from("gallery_items")
+      .from("gallery_photos")
       .select("*")
       .eq("visible", true)
       .order("sort_order", { ascending: true })

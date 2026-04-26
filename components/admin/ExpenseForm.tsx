@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/Label";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { FormShell, FieldError } from "@/components/admin/FormShell";
 import { SubmitButton } from "@/components/admin/SubmitButton";
+import { CategoryPicker } from "@/components/admin/CategoryPicker";
 import { initialActionState, type ActionState } from "@/lib/actions";
-import type { Expense, ExpenseCategory } from "@/lib/types";
+import type { Expense } from "@/lib/types";
 
 interface JobOption {
   id: string;
@@ -23,14 +24,6 @@ interface Props {
   cancelHref: string;
   submitLabel?: string;
 }
-
-const CATEGORY_OPTIONS: { value: ExpenseCategory; label: string }[] = [
-  { value: "materials", label: "Materials" },
-  { value: "labor", label: "Labor" },
-  { value: "subcontractor", label: "Subcontractor" },
-  { value: "equipment", label: "Equipment" },
-  { value: "other", label: "Other" },
-];
 
 const inputClass =
   "w-full rounded-md border border-charcoal-600 bg-charcoal-900 px-3 py-2 text-sm text-charcoal-50 focus:outline-none focus:ring-2 focus:ring-gold-500/40 focus:border-gold-500/60 transition";
@@ -71,21 +64,9 @@ export function ExpenseForm({
             <FieldError name="job_id" />
           </div>
 
-          <div>
-            <Label htmlFor="category">Category</Label>
-            <select
-              id="category"
-              name="category"
-              defaultValue={expense?.category ?? ""}
-              className={inputClass}
-            >
-              <option value="">—</option>
-              {CATEGORY_OPTIONS.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+          <div className="md:col-span-2">
+            <Label>Category</Label>
+            <CategoryPicker defaultValue={expense?.category ?? ""} />
           </div>
 
           <div>

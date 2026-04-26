@@ -16,7 +16,7 @@ import type { GalleryItem } from "@/lib/types";
 export default async function GalleryPage() {
   const supabase = await createClient();
   const { data: items } = await supabase
-    .from("gallery_items")
+    .from("gallery_photos")
     .select("*")
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false });
