@@ -10,6 +10,8 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Job, Client, JobStatus } from "@/lib/types";
 
 const STATUS_OPTIONS = [
+  { value: "lead", label: "Lead" },
+  { value: "active", label: "Active" },
   { value: "quoted", label: "Quoted" },
   { value: "approved", label: "Approved" },
   { value: "in_progress", label: "In progress" },

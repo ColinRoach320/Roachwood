@@ -12,29 +12,32 @@ export default async function NewEstimatePage({ searchParams }: PageProps) {
   const { job_id } = await searchParams;
   const supabase = await createClient();
 
-  const { data: jobs } = await supabase
-    .from("jobs")
-    .select("id, title, client_id")
-    .order("created_at", { ascending: false });
+  const [jobsRes, clientsRes] = await Promise.all([
+    supabase
+      .from("jobs")
+      .select("id, title, client_id")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("clients")
+      .select("id, contact_name, company_name")
+      .order("contact_name", { ascending: true }),
+  ]);
 
-  const clientIds = Array.from(
-    new Set((jobs ?? []).map((j: Pick<Job, "client_id">) => j.client_id)),
-  );
-  const { data: clients } = clientIds.length
-    ? await supabase
-        .from("clients")
-        .select("id, contact_name")
-        .in("id", clientIds)
-    : { data: [] };
-  const clientMap = new Map(
-    (clients ?? []).map((c: Pick<Client, "id" | "contact_name">) => [c.id, c.contact_name]),
+  const allClients =
+    (clientsRes.data ?? []) as Pick<
+      Client,
+      "id" | "contact_name" | "company_name"
+    >[];
+  const clientNameById = new Map(
+    allClients.map((c) => [c.id, c.contact_name] as const),
   );
 
-  const jobOptions = (jobs ?? []).map(
+  const jobOptions = (jobsRes.data ?? []).map(
     (j: Pick<Job, "id" | "title" | "client_id">) => ({
       id: j.id,
       title: j.title,
-      client_name: clientMap.get(j.client_id) ?? null,
+      client_id: j.client_id,
+      client_name: clientNameById.get(j.client_id) ?? null,
     }),
   );
 
@@ -43,15 +46,20 @@ export default async function NewEstimatePage({ searchParams }: PageProps) {
       <div>
         <p className="rw-eyebrow">Estimates / New</p>
         <h1 className="rw-display mt-2 text-3xl">New estimate</h1>
+        <p className="mt-2 max-w-xl text-sm text-charcoal-400">
+          Whatever you save here lands in the database — client, project,
+          and estimate — even before the bid is won.
+        </p>
       </div>
 
       <Card>
         <EstimateForm
           jobs={jobOptions}
+          clients={allClients}
           defaultJobId={job_id}
           action={createEstimateRecord}
           cancelHref="/admin/estimates"
-          submitLabel="Create estimate"
+          submitLabel="Save estimate"
         />
       </Card>
     </div>

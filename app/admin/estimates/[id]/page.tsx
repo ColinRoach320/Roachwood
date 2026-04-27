@@ -85,21 +85,26 @@ export default async function EstimateDetailPage({ params }: PageProps) {
               </Button>
             </form>
           ) : null}
-          {estimate.status === "sent" ? (
+          {estimate.status === "draft" || estimate.status === "sent" ? (
             <>
-              <form action={setEstimateStatus.bind(null, id, "approved")}>
+              <form action={setEstimateStatus.bind(null, id, "won")}>
                 <Button type="submit" size="sm">
-                  Mark approved
+                  Won
                 </Button>
               </form>
-              <form action={setEstimateStatus.bind(null, id, "declined")}>
+              <form action={setEstimateStatus.bind(null, id, "lost")}>
                 <Button type="submit" size="sm" variant="secondary">
-                  Mark declined
+                  Lost
+                </Button>
+              </form>
+              <form action={setEstimateStatus.bind(null, id, "no_response")}>
+                <Button type="submit" size="sm" variant="ghost">
+                  No response
                 </Button>
               </form>
             </>
           ) : null}
-          {estimate.status === "approved" ? (
+          {estimate.status === "won" ? (
             <ButtonLink
               href={`/admin/invoices/new?estimate_id=${estimate.id}`}
               size="sm"

@@ -60,11 +60,18 @@ export default async function AdminDashboardPage() {
   const recentUpdates = (recentUpdatesRes.data ?? []) as JobUpdate[];
 
   const activeJobs = jobs.filter(
-    (j) => j.status === "approved" || j.status === "in_progress",
+    (j) =>
+      j.status === "active" ||
+      j.status === "approved" ||
+      j.status === "in_progress",
   );
+  // Pipeline = potential and not-yet-started: leads, quotes,
+  // approved-but-not-active. Excludes "active" since work is underway.
   const pipelineValue = jobs.reduce(
     (sum, j) =>
-      j.status === "quoted" || j.status === "approved"
+      j.status === "lead" ||
+      j.status === "quoted" ||
+      j.status === "approved"
         ? sum + (j.estimated_value ?? 0)
         : sum,
     0,

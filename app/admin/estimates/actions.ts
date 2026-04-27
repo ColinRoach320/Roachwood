@@ -7,7 +7,18 @@ import { parseNumber } from "@/lib/utils";
 import { computeLineTotals, parseLineItemsJson } from "@/lib/lineItems";
 import type { EstimateStatus } from "@/lib/types";
 
-const VALID_STATUSES: EstimateStatus[] = ["draft", "sent", "approved", "declined"];
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+const VALID_STATUSES: EstimateStatus[] = [
+  "draft",
+  "sent",
+  "won",
+  "lost",
+  "no_response",
+];
+
+const NEW_CLIENT = "__new_client__";
+const NEW_JOB = "__new_job__";
 
 function readEstimateForm(formData: FormData) {
   const get = (k: string) => {
@@ -20,6 +31,7 @@ function readEstimateForm(formData: FormData) {
   const statusRaw = get("status") as EstimateStatus;
   return {
     job_id: get("job_id"),
+    client_id: get("client_id"),
     title: get("title"),
     notes: get("notes") || null,
     status: VALID_STATUSES.includes(statusRaw) ? statusRaw : "draft",
@@ -31,14 +43,117 @@ function readEstimateForm(formData: FormData) {
   };
 }
 
-function validateEstimate(input: ReturnType<typeof readEstimateForm>) {
-  const errors: Record<string, string> = {};
-  if (!input.job_id) errors.job_id = "Pick a job.";
-  if (!input.title) errors.title = "Title is required.";
-  if (input.line_items.length === 0) {
-    errors.line_items = "Add at least one line.";
+/**
+ * Estimate-first cascade: when the form was submitted with the
+ * `__new_client__` and/or `__new_job__` sentinels, create those rows
+ * first so the estimate insert has a real client_id / job_id to point
+ * at. Resulting in three rows persisted from one submit. The client +
+ * project stick around even if the estimate ends up lost — that's the
+ * point.
+ */
+async function resolveClientAndJob(
+  formData: FormData,
+  estimateTitle: string,
+  rawClientId: string,
+  rawJobId: string,
+  supabase: SupabaseServerClient,
+): Promise<
+  | { ok: true; client_id: string | null; job_id: string }
+  | { ok: false; error: string; fieldErrors?: Record<string, string> }
+> {
+  const get = (k: string) => {
+    const v = formData.get(k);
+    return typeof v === "string" ? v.trim() : "";
+  };
+
+  let clientId: string | null = null;
+
+  // 1. Resolve the client. If "+ New client" was picked, create it
+  //    using the inline contact panel; otherwise we'll derive
+  //    client_id from the existing job.
+  if (rawClientId === NEW_CLIENT) {
+    const newClient = {
+      contact_name: get("new_client_name"),
+      email: get("new_client_email") || null,
+      phone: get("new_client_phone") || null,
+      address: get("new_client_address") || null,
+    };
+    const errors: Record<string, string> = {};
+    if (!newClient.contact_name) {
+      errors.new_client_name = "Contact name is required.";
+    }
+    if (
+      newClient.email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newClient.email)
+    ) {
+      errors.new_client_email = "Enter a valid email.";
+    }
+    if (Object.keys(errors).length > 0) {
+      return {
+        ok: false,
+        error: "Please fix the highlighted fields.",
+        fieldErrors: errors,
+      };
+    }
+
+    const { data, error } = await supabase
+      .from("clients")
+      .insert(newClient)
+      .select("id")
+      .single<{ id: string }>();
+    if (error || !data) {
+      return {
+        ok: false,
+        error: error?.message ?? "Could not create client.",
+      };
+    }
+    clientId = data.id;
+  } else if (rawClientId !== "") {
+    clientId = rawClientId;
   }
-  return errors;
+
+  // 2. Resolve the project. "+ New project" → insert a fresh job in
+  //    "lead" status. Existing job → use as-is.
+  if (rawJobId === NEW_JOB) {
+    if (!clientId) {
+      // Defensive: the form keeps the project picker disabled until a
+      // client is picked, but a hand-crafted submit could still reach
+      // here.
+      return {
+        ok: false,
+        error: "Please fix the highlighted fields.",
+        fieldErrors: { client_id: "Pick a client before creating a project." },
+      };
+    }
+
+    const newJob = {
+      client_id: clientId,
+      title: get("new_job_title") || estimateTitle,
+      address: get("new_job_address") || null,
+      status: "lead" as const,
+    };
+    const { data, error } = await supabase
+      .from("jobs")
+      .insert(newJob)
+      .select("id")
+      .single<{ id: string }>();
+    if (error || !data) {
+      return {
+        ok: false,
+        error: error?.message ?? "Could not create project.",
+      };
+    }
+    return { ok: true, client_id: clientId, job_id: data.id };
+  }
+
+  if (!rawJobId) {
+    return {
+      ok: false,
+      error: "Please fix the highlighted fields.",
+      fieldErrors: { job_id: "Pick a project." },
+    };
+  }
+  return { ok: true, client_id: clientId, job_id: rawJobId };
 }
 
 export async function createEstimateRecord(
@@ -46,21 +161,63 @@ export async function createEstimateRecord(
   formData: FormData,
 ): Promise<ActionState> {
   const input = readEstimateForm(formData);
-  const errors = validateEstimate(input);
-  if (Object.keys(errors).length > 0) {
-    return fail("Please fix the highlighted fields.", errors);
+
+  // Validate the always-required fields first so an empty title
+  // doesn't get masked by a project_id error during the cascade.
+  const fieldErrors: Record<string, string> = {};
+  if (!input.title) fieldErrors.title = "Title is required.";
+  if (input.line_items.length === 0) {
+    fieldErrors.line_items = "Add at least one line.";
   }
+  if (Object.keys(fieldErrors).length > 0) {
+    return fail("Please fix the highlighted fields.", fieldErrors);
+  }
+
   const supabase = await createClient();
+  const resolved = await resolveClientAndJob(
+    formData,
+    input.title,
+    input.client_id,
+    input.job_id,
+    supabase,
+  );
+  if (!resolved.ok) return fail(resolved.error, resolved.fieldErrors);
+
+  const insertPayload = {
+    job_id: resolved.job_id,
+    title: input.title,
+    notes: input.notes,
+    status: input.status,
+    tax_rate: input.tax_rate,
+    line_items: input.line_items,
+    subtotal: input.subtotal,
+    tax_amount: input.tax_amount,
+    total: input.total,
+  };
+
   const { data, error } = await supabase
     .from("estimates")
-    .insert(input)
+    .insert(insertPayload)
     .select("id, job_id")
     .single<{ id: string; job_id: string }>();
   if (error || !data) return fail(error?.message ?? "Could not save estimate.");
 
+  // If the brand-new estimate is already marked won, propagate to the
+  // job so it lines up with how setEstimateStatus would behave for a
+  // later transition.
+  if (input.status === "won") {
+    await supabase
+      .from("jobs")
+      .update({ status: "active" })
+      .eq("id", data.job_id);
+  }
+
   revalidatePath("/admin/estimates");
+  revalidatePath("/admin/clients");
+  revalidatePath("/admin/jobs");
+  revalidatePath("/admin");
   revalidatePath(`/admin/jobs/${data.job_id}`);
-  return ok("Estimate created.", `/admin/estimates/${data.id}`);
+  return ok("Estimate saved.", `/admin/estimates/${data.id}`);
 }
 
 export async function updateEstimateRecord(
@@ -69,13 +226,40 @@ export async function updateEstimateRecord(
   formData: FormData,
 ): Promise<ActionState> {
   const input = readEstimateForm(formData);
-  const errors = validateEstimate(input);
-  if (Object.keys(errors).length > 0) {
-    return fail("Please fix the highlighted fields.", errors);
+  const fieldErrors: Record<string, string> = {};
+  if (!input.job_id) fieldErrors.job_id = "Pick a project.";
+  if (!input.title) fieldErrors.title = "Title is required.";
+  if (input.line_items.length === 0) {
+    fieldErrors.line_items = "Add at least one line.";
   }
+  if (Object.keys(fieldErrors).length > 0) {
+    return fail("Please fix the highlighted fields.", fieldErrors);
+  }
+
   const supabase = await createClient();
-  const { error } = await supabase.from("estimates").update(input).eq("id", id);
+  const updatePayload = {
+    job_id: input.job_id,
+    title: input.title,
+    notes: input.notes,
+    status: input.status,
+    tax_rate: input.tax_rate,
+    line_items: input.line_items,
+    subtotal: input.subtotal,
+    tax_amount: input.tax_amount,
+    total: input.total,
+  };
+  const { error } = await supabase
+    .from("estimates")
+    .update(updatePayload)
+    .eq("id", id);
   if (error) return fail(error.message);
+
+  if (input.status === "won") {
+    await supabase
+      .from("jobs")
+      .update({ status: "active" })
+      .eq("id", input.job_id);
+  }
 
   revalidatePath(`/admin/estimates/${id}`);
   revalidatePath("/admin/estimates");
@@ -84,9 +268,12 @@ export async function updateEstimateRecord(
 }
 
 /**
- * Status transition. Used by the detail page Send / Approve / Decline
- * buttons. Wrapped as a `(formData) => void` action so it can be passed
- * directly to `<form action={...}>` after .bind(null, id, status).
+ * Status transition. Wrapped as a `(formData) => void` action so it can
+ * be passed directly to `<form action={...}>` after .bind(null, id, status).
+ *
+ * "won" cascades: job → "active". "lost" / "no_response" leave the job
+ * alone (the brief is explicit — the client + project stick around for
+ * future marketing).
  */
 export async function setEstimateStatus(
   id: string,
@@ -100,7 +287,20 @@ export async function setEstimateStatus(
     .eq("id", id)
     .select("job_id")
     .single<{ job_id: string }>();
+
+  if (status === "won" && data?.job_id) {
+    await supabase
+      .from("jobs")
+      .update({ status: "active" })
+      .eq("id", data.job_id);
+  }
+
   revalidatePath(`/admin/estimates/${id}`);
   revalidatePath("/admin/estimates");
-  if (data?.job_id) revalidatePath(`/admin/jobs/${data.job_id}`);
+  revalidatePath("/admin");
+  revalidatePath("/admin/jobs");
+  if (data?.job_id) {
+    revalidatePath(`/admin/jobs/${data.job_id}`);
+    revalidatePath(`/portal/jobs/${data.job_id}`);
+  }
 }

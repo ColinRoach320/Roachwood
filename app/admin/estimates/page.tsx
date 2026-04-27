@@ -12,8 +12,9 @@ import type { Estimate, Job, Client, EstimateStatus } from "@/lib/types";
 const STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },
   { value: "sent", label: "Sent" },
-  { value: "approved", label: "Approved" },
-  { value: "declined", label: "Declined" },
+  { value: "won", label: "Won" },
+  { value: "lost", label: "Lost" },
+  { value: "no_response", label: "No response" },
 ];
 
 interface PageProps {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { UserPlus, FolderPlus } from "lucide-react";
 import { Input, Textarea } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { ButtonLink } from "@/components/ui/ButtonLink";
@@ -8,17 +9,19 @@ import { FormShell, FieldError } from "@/components/admin/FormShell";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 import { LineItemsEditor } from "@/components/admin/LineItemsEditor";
 import { initialActionState, type ActionState } from "@/lib/actions";
-import type { Estimate, EstimateStatus } from "@/lib/types";
+import type { Estimate, EstimateStatus, Client } from "@/lib/types";
 
 interface JobOption {
   id: string;
   title: string;
+  client_id: string;
   client_name: string | null;
 }
 
 interface Props {
   estimate?: Estimate | null;
   jobs: JobOption[];
+  clients: Pick<Client, "id" | "contact_name" | "company_name">[];
   defaultJobId?: string;
   action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
   cancelHref: string;
@@ -28,61 +31,137 @@ interface Props {
 const STATUS_OPTIONS: { value: EstimateStatus; label: string }[] = [
   { value: "draft", label: "Draft" },
   { value: "sent", label: "Sent" },
-  { value: "approved", label: "Approved" },
-  { value: "declined", label: "Declined" },
+  { value: "won", label: "Won" },
+  { value: "lost", label: "Lost" },
+  { value: "no_response", label: "No response" },
 ];
 
 const inputClass =
   "w-full rounded-md border border-charcoal-600 bg-charcoal-900 px-3 py-2 text-sm text-charcoal-50 focus:outline-none focus:ring-2 focus:ring-gold-500/40 focus:border-gold-500/60 transition";
 
+// Mirrors the sentinel in app/admin/estimates/actions.ts. Server-side
+// the action treats these specially and creates a row before inserting
+// the estimate.
+const NEW_CLIENT = "__new_client__";
+const NEW_JOB = "__new_job__";
+
 export function EstimateForm({
   estimate,
   jobs,
+  clients,
   defaultJobId,
   action,
   cancelHref,
   submitLabel = "Save estimate",
 }: Props) {
   const [state, formAction] = useActionState(action, initialActionState);
+  const [clientSelection, setClientSelection] = useState<string>("");
+  const [jobSelection, setJobSelection] = useState<string>(
+    estimate?.job_id ?? defaultJobId ?? "",
+  );
+  const creatingClient = clientSelection === NEW_CLIENT;
+  const creatingJob = jobSelection === NEW_JOB;
+
+  // When editing, the existing job is locked (the estimate already
+  // points at one); we don't expose the inline-create paths in that
+  // case so the cascade can't accidentally fire.
+  const isEdit = !!estimate;
 
   return (
     <FormShell state={state}>
       <form action={formAction} className="space-y-6">
         <div className="grid gap-5 md:grid-cols-2">
           <div className="md:col-span-2">
-            <Label htmlFor="title">Title *</Label>
+            <Label htmlFor="title">Estimate title *</Label>
             <Input
               id="title"
               name="title"
               defaultValue={estimate?.title ?? ""}
-              placeholder="Kitchen cabinetry — Phase 1"
+              placeholder="Walnut kitchen — initial bid"
               required
               autoFocus
             />
             <FieldError name="title" />
           </div>
-          <div>
-            <Label htmlFor="job_id">Job *</Label>
-            <select
-              id="job_id"
-              name="job_id"
-              defaultValue={estimate?.job_id ?? defaultJobId ?? ""}
-              required
-              className={inputClass}
-            >
-              <option value="" disabled>
-                Select a job…
-              </option>
-              {jobs.map((j) => (
-                <option key={j.id} value={j.id}>
-                  {j.title}
-                  {j.client_name ? ` — ${j.client_name}` : ""}
-                </option>
-              ))}
-            </select>
-            <FieldError name="job_id" />
-          </div>
-          <div>
+
+          {!isEdit ? (
+            <>
+              {/* Client picker — drives the project picker below. */}
+              <div>
+                <Label htmlFor="client_id">Client *</Label>
+                <select
+                  id="client_id"
+                  name="client_id"
+                  value={clientSelection}
+                  onChange={(e) => setClientSelection(e.target.value)}
+                  required={creatingJob || !creatingClient ? false : true}
+                  className={inputClass}
+                >
+                  <option value="">Existing client (pick a project) …</option>
+                  <option value={NEW_CLIENT}>+ New client</option>
+                  {clients.length > 0 ? (
+                    <optgroup label="Existing clients">
+                      {clients.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.contact_name}
+                          {c.company_name ? ` — ${c.company_name}` : ""}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                </select>
+                <FieldError name="client_id" />
+              </div>
+
+              <div>
+                <Label htmlFor="job_id">Project *</Label>
+                <select
+                  id="job_id"
+                  name="job_id"
+                  value={jobSelection}
+                  onChange={(e) => setJobSelection(e.target.value)}
+                  required
+                  className={inputClass}
+                  disabled={creatingClient}
+                >
+                  <option value="" disabled>
+                    Select a project…
+                  </option>
+                  <option value={NEW_JOB}>+ New project</option>
+                  {jobs.length > 0 ? (
+                    <optgroup label="Existing projects">
+                      {jobs.map((j) => (
+                        <option key={j.id} value={j.id}>
+                          {j.title}
+                          {j.client_name ? ` — ${j.client_name}` : ""}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                </select>
+                <FieldError name="job_id" />
+                {creatingClient ? (
+                  <p className="mt-1 text-xs text-charcoal-500">
+                    A new project will be created for this client.
+                  </p>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <div className="md:col-span-2">
+              <Label htmlFor="job_id">Project</Label>
+              <Input
+                value={
+                  jobs.find((j) => j.id === estimate.job_id)?.title ??
+                  "(linked project)"
+                }
+                disabled
+              />
+              <input type="hidden" name="job_id" value={estimate.job_id} />
+            </div>
+          )}
+
+          <div className="md:col-span-2">
             <Label htmlFor="status">Status</Label>
             <select
               id="status"
@@ -97,6 +176,90 @@ export function EstimateForm({
               ))}
             </select>
           </div>
+
+          {creatingClient && !isEdit ? (
+            <div className="md:col-span-2 rounded-lg border border-gold-500/30 bg-gold-500/5 p-5">
+              <div className="mb-4 flex items-center gap-2">
+                <UserPlus className="h-4 w-4 text-gold-400" />
+                <p className="rw-eyebrow">New client</p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="md:col-span-2">
+                  <Label htmlFor="new_client_name">Contact name *</Label>
+                  <Input
+                    id="new_client_name"
+                    name="new_client_name"
+                    placeholder="Jane Homeowner"
+                    required={creatingClient}
+                  />
+                  <FieldError name="new_client_name" />
+                </div>
+                <div>
+                  <Label htmlFor="new_client_email">Email</Label>
+                  <Input
+                    id="new_client_email"
+                    name="new_client_email"
+                    type="email"
+                    placeholder="jane@example.com"
+                  />
+                  <FieldError name="new_client_email" />
+                </div>
+                <div>
+                  <Label htmlFor="new_client_phone">Phone</Label>
+                  <Input
+                    id="new_client_phone"
+                    name="new_client_phone"
+                    type="tel"
+                    placeholder="(602) 555-0000"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="new_client_address">Address</Label>
+                  <Input
+                    id="new_client_address"
+                    name="new_client_address"
+                    placeholder="Street, city, state"
+                  />
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-charcoal-400">
+                Client + project records save when you save the estimate —
+                even if the bid doesn&rsquo;t win.
+              </p>
+            </div>
+          ) : null}
+
+          {(creatingJob || creatingClient) && !isEdit ? (
+            <div className="md:col-span-2 rounded-lg border border-gold-500/30 bg-gold-500/5 p-5">
+              <div className="mb-4 flex items-center gap-2">
+                <FolderPlus className="h-4 w-4 text-gold-400" />
+                <p className="rw-eyebrow">New project</p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="md:col-span-2">
+                  <Label htmlFor="new_job_title">Project title</Label>
+                  <Input
+                    id="new_job_title"
+                    name="new_job_title"
+                    placeholder="Defaults to the estimate title above"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="new_job_address">Site address</Label>
+                  <Input
+                    id="new_job_address"
+                    name="new_job_address"
+                    placeholder="Street, city, state"
+                  />
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-charcoal-400">
+                Starts in <strong>lead</strong> status. Flips to{" "}
+                <strong>active</strong> automatically when the estimate is
+                marked won.
+              </p>
+            </div>
+          ) : null}
         </div>
 
         <div>

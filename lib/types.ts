@@ -7,6 +7,8 @@
 export type Role = "admin" | "client";
 
 export type JobStatus =
+  | "lead"
+  | "active"
   | "quoted"
   | "approved"
   | "in_progress"
@@ -84,7 +86,12 @@ export interface DocumentRow {
 
 // ── Phase 1 admin: estimates / invoices / expenses ───────────────────────────
 
-export type EstimateStatus = "draft" | "sent" | "approved" | "declined";
+export type EstimateStatus =
+  | "draft"
+  | "sent"
+  | "won"
+  | "lost"
+  | "no_response";
 export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue";
 export type ExpenseCategory =
   | "materials"

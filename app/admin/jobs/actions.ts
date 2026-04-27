@@ -9,6 +9,8 @@ import type { JobStatus } from "@/lib/types";
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
 const VALID_STATUSES: JobStatus[] = [
+  "lead",
+  "active",
   "quoted",
   "approved",
   "in_progress",

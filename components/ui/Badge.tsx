@@ -42,6 +42,8 @@ export function Badge({
 }
 
 const jobStatusTone: Record<JobStatus, Tone> = {
+  lead: "neutral",
+  active: "blue",
   quoted: "neutral",
   approved: "gold",
   in_progress: "blue",
@@ -67,12 +69,15 @@ export function ApprovalStatusBadge({ status }: { status: ApprovalStatus }) {
 const estimateStatusTone: Record<EstimateStatus, Tone> = {
   draft: "neutral",
   sent: "blue",
-  approved: "green",
-  declined: "red",
+  won: "green",
+  lost: "red",
+  no_response: "amber",
 };
 
 export function EstimateStatusBadge({ status }: { status: EstimateStatus }) {
-  return <Badge tone={estimateStatusTone[status]}>{status}</Badge>;
+  return (
+    <Badge tone={estimateStatusTone[status]}>{status.replace("_", " ")}</Badge>
+  );
 }
 
 const invoiceStatusTone: Record<InvoiceStatus, Tone> = {

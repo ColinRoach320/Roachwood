@@ -22,6 +22,8 @@ interface Props {
 }
 
 const STATUS_OPTIONS: { value: JobStatus; label: string }[] = [
+  { value: "lead", label: "Lead" },
+  { value: "active", label: "Active" },
   { value: "quoted", label: "Quoted" },
   { value: "approved", label: "Approved" },
   { value: "in_progress", label: "In progress" },

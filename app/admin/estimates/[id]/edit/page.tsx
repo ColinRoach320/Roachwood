@@ -21,24 +21,31 @@ export default async function EditEstimatePage({ params }: PageProps) {
 
   if (!estimate) notFound();
 
-  const { data: jobs } = await supabase
-    .from("jobs")
-    .select("id, title, client_id")
-    .order("created_at", { ascending: false });
-  const clientIds = Array.from(
-    new Set((jobs ?? []).map((j: Pick<Job, "client_id">) => j.client_id)),
+  const [jobsRes, clientsRes] = await Promise.all([
+    supabase
+      .from("jobs")
+      .select("id, title, client_id")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("clients")
+      .select("id, contact_name, company_name")
+      .order("contact_name", { ascending: true }),
+  ]);
+
+  const allClients =
+    (clientsRes.data ?? []) as Pick<
+      Client,
+      "id" | "contact_name" | "company_name"
+    >[];
+  const clientNameById = new Map(
+    allClients.map((c) => [c.id, c.contact_name] as const),
   );
-  const { data: clients } = clientIds.length
-    ? await supabase.from("clients").select("id, contact_name").in("id", clientIds)
-    : { data: [] };
-  const clientMap = new Map(
-    (clients ?? []).map((c: Pick<Client, "id" | "contact_name">) => [c.id, c.contact_name]),
-  );
-  const jobOptions = (jobs ?? []).map(
+  const jobOptions = (jobsRes.data ?? []).map(
     (j: Pick<Job, "id" | "title" | "client_id">) => ({
       id: j.id,
       title: j.title,
-      client_name: clientMap.get(j.client_id) ?? null,
+      client_id: j.client_id,
+      client_name: clientNameById.get(j.client_id) ?? null,
     }),
   );
 
@@ -55,6 +62,7 @@ export default async function EditEstimatePage({ params }: PageProps) {
         <EstimateForm
           estimate={estimate}
           jobs={jobOptions}
+          clients={allClients}
           action={action}
           cancelHref={`/admin/estimates/${id}`}
           submitLabel="Save changes"
