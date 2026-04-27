@@ -1,21 +1,8 @@
 import { redirect } from "next/navigation";
-import {
-  LayoutDashboard,
-  Hammer,
-  FileCheck2,
-  FileText,
-} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/portal-shell/Sidebar";
 import { Topbar } from "@/components/portal-shell/Topbar";
 import { BottomNav } from "@/components/portal-shell/BottomNav";
-
-const nav = [
-  { href: "/portal", label: "Overview", icon: LayoutDashboard },
-  { href: "/portal/jobs", label: "Projects", icon: Hammer },
-  { href: "/portal/approvals", label: "Approvals", icon: FileCheck2 },
-  { href: "/portal/documents", label: "Documents", icon: FileText },
-];
 
 export default async function PortalLayout({
   children,
@@ -39,7 +26,7 @@ export default async function PortalLayout({
       <Topbar user={profile ?? { email: user.email }} scope="Client" />
       <div className="mx-auto grid max-w-[1400px] lg:grid-cols-[260px_1fr]">
         <aside className="hidden border-r border-charcoal-800 lg:block lg:min-h-[calc(100vh-65px)]">
-          <Sidebar items={nav} eyebrow="Your projects" />
+          <Sidebar scope="portal" />
         </aside>
         <main className="px-4 py-6 pb-24 sm:px-6 lg:p-8 lg:pb-8">
           {children}
