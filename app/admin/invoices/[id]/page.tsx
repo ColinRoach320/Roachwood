@@ -11,6 +11,7 @@ import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Button } from "@/components/ui/Button";
 import { InvoiceStatusBadge } from "@/components/ui/Badge";
 import { RecordPaymentForm } from "@/components/admin/RecordPaymentForm";
+import { PaymentLinkButton } from "@/components/admin/PaymentLinkButton";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/utils";
 import type { Invoice, Job, Client, LineItem } from "@/lib/types";
@@ -132,17 +133,37 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
       </div>
 
       {remaining > 0 ? (
-        <Card>
-          <CardHeader>
-            <div>
-              <CardTitle>Record a payment</CardTitle>
-              <CardDescription>
-                Outstanding balance: {formatMoney(remaining)}.
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <RecordPaymentForm action={paymentAction} remaining={remaining} />
-        </Card>
+        <>
+          <Card>
+            <CardHeader>
+              <div>
+                <CardTitle>Stripe payment link</CardTitle>
+                <CardDescription>
+                  Generate a hosted payment page so the client can pay this
+                  invoice with a card. The webhook flips the invoice to paid
+                  automatically when checkout completes.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <PaymentLinkButton
+              invoiceId={invoice.id}
+              existingLink={invoice.stripe_payment_link}
+            />
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div>
+                <CardTitle>Record a payment</CardTitle>
+                <CardDescription>
+                  Manually log a payment received outside Stripe (cash, check,
+                  ACH).
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <RecordPaymentForm action={paymentAction} remaining={remaining} />
+          </Card>
+        </>
       ) : null}
 
       <Card className="p-0 overflow-hidden">
