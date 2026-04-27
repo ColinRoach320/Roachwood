@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/Label";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { FormShell, FieldError } from "@/components/admin/FormShell";
 import { SubmitButton } from "@/components/admin/SubmitButton";
+import { MoneyInput } from "@/components/admin/MoneyInput";
+import { DateField } from "@/components/admin/DateField";
 import { initialActionState, type ActionState } from "@/lib/actions";
 import type { Job, Client, JobStatus } from "@/lib/types";
 
@@ -169,31 +171,27 @@ export function JobForm({
 
           <div>
             <Label htmlFor="start_date">Start date</Label>
-            <Input
+            <DateField
               id="start_date"
               name="start_date"
-              type="date"
               defaultValue={job?.start_date ?? ""}
             />
           </div>
           <div>
             <Label htmlFor="end_date">Target end date</Label>
-            <Input
+            <DateField
               id="end_date"
               name="end_date"
-              type="date"
               defaultValue={job?.end_date ?? ""}
             />
           </div>
 
           <div>
             <Label htmlFor="estimated_value">Estimated value (USD)</Label>
-            <Input
+            <MoneyInput
               id="estimated_value"
               name="estimated_value"
-              type="number"
-              step="0.01"
-              min="0"
+              placeholder="0"
               defaultValue={job?.estimated_value ?? ""}
             />
             <FieldError name="estimated_value" />
