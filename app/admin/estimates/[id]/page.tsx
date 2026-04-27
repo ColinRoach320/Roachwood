@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Pencil, ArrowRight } from "lucide-react";
+import { Pencil, ArrowRight, FileDown } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -107,6 +107,13 @@ export default async function EstimateDetailPage({ params }: PageProps) {
               Convert to invoice <ArrowRight className="h-4 w-4" />
             </ButtonLink>
           ) : null}
+          <ButtonLink
+            href={`/api/pdf/estimate/${id}`}
+            size="sm"
+            variant="outline"
+          >
+            <FileDown className="h-4 w-4" /> Download PDF
+          </ButtonLink>
           <ButtonLink
             href={`/admin/estimates/${id}/edit`}
             size="sm"
