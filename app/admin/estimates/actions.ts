@@ -114,11 +114,17 @@ async function resolveClientAndJob(
 
   // 2. Resolve the project. "+ New project" → insert a fresh job in
   //    "lead" status. Existing job → use as-is.
-  if (rawJobId === NEW_JOB) {
+  //
+  // Special case: when the user just created a brand-new client, a
+  // missing job_id always implies "+ New project" — a brand-new client
+  // can't have an existing project to attach to. Treat the empty
+  // submission as NEW_JOB instead of erroring out, which used to leave
+  // the new client orphaned without an estimate.
+  const wantsNewJob =
+    rawJobId === NEW_JOB || (rawClientId === NEW_CLIENT && rawJobId === "");
+
+  if (wantsNewJob) {
     if (!clientId) {
-      // Defensive: the form keeps the project picker disabled until a
-      // client is picked, but a hand-crafted submit could still reach
-      // here.
       return {
         ok: false,
         error: "Please fix the highlighted fields.",
@@ -135,12 +141,21 @@ async function resolveClientAndJob(
     const { data, error } = await supabase
       .from("jobs")
       .insert(newJob)
-      .select("id")
-      .single<{ id: string }>();
+      .select("id, client_id")
+      .single<{ id: string; client_id: string }>();
     if (error || !data) {
       return {
         ok: false,
         error: error?.message ?? "Could not create project.",
+      };
+    }
+    // Confirm the link survived the insert before continuing — if a
+    // future trigger ever stripped client_id, we'd rather fail loudly
+    // than save an estimate against a detached project.
+    if (data.client_id !== clientId) {
+      return {
+        ok: false,
+        error: "New project saved without a client link. Please retry.",
       };
     }
     return { ok: true, client_id: clientId, job_id: data.id };

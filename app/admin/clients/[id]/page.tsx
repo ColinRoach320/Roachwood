@@ -17,11 +17,30 @@ export default async function ClientDetailPage({ params }: PageProps) {
   const { id } = await params;
   const supabase = await createClient();
 
+  // Read every contact field straight from the `clients` table — these
+  // are the client's own values, NOT the admin's profile. Listing the
+  // columns explicitly (rather than select("*")) makes that obvious at
+  // the call site and immune to any future view/join shenanigans.
   const { data: client } = await supabase
     .from("clients")
-    .select("*")
+    .select(
+      "id, contact_name, company_name, email, phone, address, notes, profile_id, created_at",
+    )
     .eq("id", id)
-    .maybeSingle<Client>();
+    .maybeSingle<
+      Pick<
+        Client,
+        | "id"
+        | "contact_name"
+        | "company_name"
+        | "email"
+        | "phone"
+        | "address"
+        | "notes"
+        | "profile_id"
+        | "created_at"
+      >
+    >();
 
   if (!client) notFound();
 

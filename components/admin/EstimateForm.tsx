@@ -62,6 +62,22 @@ export function EstimateForm({
   const creatingClient = clientSelection === NEW_CLIENT;
   const creatingJob = jobSelection === NEW_JOB;
 
+  // When the user picks "+ New client", a brand-new client can't have an
+  // existing project — so force the project picker to "+ New project"
+  // too. Doing this here (rather than disabling the select) keeps the
+  // value submitted by the form; disabled <select> elements drop out of
+  // FormData entirely, which was breaking the cascade.
+  function handleClientChange(next: string) {
+    setClientSelection(next);
+    if (next === NEW_CLIENT) {
+      setJobSelection(NEW_JOB);
+    } else if (jobSelection === NEW_JOB) {
+      // Switching back to an existing client clears the auto-pick so
+      // the user can choose an existing project for them.
+      setJobSelection("");
+    }
+  }
+
   // When editing, the existing job is locked (the estimate already
   // points at one); we don't expose the inline-create paths in that
   // case so the cascade can't accidentally fire.
@@ -93,8 +109,7 @@ export function EstimateForm({
                   id="client_id"
                   name="client_id"
                   value={clientSelection}
-                  onChange={(e) => setClientSelection(e.target.value)}
-                  required={creatingJob || !creatingClient ? false : true}
+                  onChange={(e) => handleClientChange(e.target.value)}
                   className={inputClass}
                 >
                   <option value="">Existing client (pick a project) …</option>
@@ -122,7 +137,6 @@ export function EstimateForm({
                   onChange={(e) => setJobSelection(e.target.value)}
                   required
                   className={inputClass}
-                  disabled={creatingClient}
                 >
                   <option value="" disabled>
                     Select a project…
