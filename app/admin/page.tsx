@@ -74,10 +74,15 @@ export default async function AdminDashboardPage() {
     0,
   );
 
+  // Arizona doesn't observe DST — always UTC-7. Pin the formatter to
+  // America/Phoenix so the dashboard date matches Colin's wall clock
+  // even when the server (Vercel) renders in UTC.
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
+    year: "numeric",
     month: "long",
     day: "numeric",
+    timeZone: "America/Phoenix",
   });
 
   const jobMap = new Map(jobs.map((j) => [j.id, j]));
