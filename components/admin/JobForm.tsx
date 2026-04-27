@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { UserPlus } from "lucide-react";
 import { Input, Textarea } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { ButtonLink } from "@/components/ui/ButtonLink";
@@ -30,6 +31,10 @@ const STATUS_OPTIONS: { value: JobStatus; label: string }[] = [
 const inputClass =
   "w-full rounded-md border border-charcoal-600 bg-charcoal-900 px-3 py-2 text-sm text-charcoal-50 focus:outline-none focus:ring-2 focus:ring-gold-500/40 focus:border-gold-500/60 transition";
 
+// Mirrors the sentinel in app/admin/jobs/actions.ts. Stays a constant
+// so the two stay in sync.
+const NEW_CLIENT_VALUE = "__new__";
+
 export function JobForm({
   job,
   clients,
@@ -39,6 +44,10 @@ export function JobForm({
   submitLabel = "Save job",
 }: Props) {
   const [state, formAction] = useActionState(action, initialActionState);
+  const [clientSelection, setClientSelection] = useState<string>(
+    job?.client_id ?? defaultClientId ?? "",
+  );
+  const creatingClient = clientSelection === NEW_CLIENT_VALUE;
 
   return (
     <FormShell state={state}>
@@ -61,19 +70,25 @@ export function JobForm({
             <select
               id="client_id"
               name="client_id"
-              defaultValue={job?.client_id ?? defaultClientId ?? ""}
+              value={clientSelection}
+              onChange={(e) => setClientSelection(e.target.value)}
               required
               className={inputClass}
             >
               <option value="" disabled>
                 Select a client…
               </option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.contact_name}
-                  {c.company_name ? ` — ${c.company_name}` : ""}
-                </option>
-              ))}
+              <option value={NEW_CLIENT_VALUE}>+ New client</option>
+              {clients.length > 0 ? (
+                <optgroup label="Existing clients">
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.contact_name}
+                      {c.company_name ? ` — ${c.company_name}` : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
             </select>
             <FieldError name="client_id" />
           </div>
@@ -93,6 +108,49 @@ export function JobForm({
               ))}
             </select>
           </div>
+
+          {creatingClient ? (
+            <div className="md:col-span-2 rounded-lg border border-gold-500/30 bg-gold-500/5 p-5">
+              <div className="mb-4 flex items-center gap-2">
+                <UserPlus className="h-4 w-4 text-gold-400" />
+                <p className="rw-eyebrow">New client</p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="md:col-span-3">
+                  <Label htmlFor="new_client_name">Contact name *</Label>
+                  <Input
+                    id="new_client_name"
+                    name="new_client_name"
+                    placeholder="Jane Homeowner"
+                    required={creatingClient}
+                  />
+                  <FieldError name="new_client_name" />
+                </div>
+                <div>
+                  <Label htmlFor="new_client_email">Email</Label>
+                  <Input
+                    id="new_client_email"
+                    name="new_client_email"
+                    type="email"
+                    placeholder="jane@example.com"
+                  />
+                  <FieldError name="new_client_email" />
+                </div>
+                <div>
+                  <Label htmlFor="new_client_phone">Phone</Label>
+                  <Input
+                    id="new_client_phone"
+                    name="new_client_phone"
+                    type="tel"
+                    placeholder="(602) 555-0000"
+                  />
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-charcoal-400">
+                We&rsquo;ll create the client record when you save the job.
+              </p>
+            </div>
+          ) : null}
 
           <div className="md:col-span-2">
             <Label htmlFor="description">Description</Label>
