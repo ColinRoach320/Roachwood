@@ -227,6 +227,48 @@ export interface Message {
   created_at: string;
 }
 
+export type SubcontractorTrade =
+  | "electrical"
+  | "plumbing"
+  | "hvac"
+  | "framing"
+  | "drywall"
+  | "painting"
+  | "flooring"
+  | "roofing"
+  | "concrete"
+  | "landscaping"
+  | "cleaning"
+  | "other";
+
+export type SubcontractorRateType = "hourly" | "daily" | "project";
+
+export interface Subcontractor {
+  id: string;
+  company_name: string | null;
+  contact_name: string;
+  email: string | null;
+  phone: string | null;
+  trade: SubcontractorTrade;
+  rate_type: SubcontractorRateType | null;
+  rate: number | null;
+  tax_id: string | null;
+  w9_on_file: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SubcontractorPayment {
+  id: string;
+  subcontractor_id: string;
+  job_id: string | null;
+  amount: number;
+  date: string;
+  description: string | null;
+  created_at: string;
+}
+
 /**
  * Minimal `Database` type for typed Supabase clients. Tables are typed as
  * `Row`/`Insert`/`Update` of the same shape; tighten when generating types.
@@ -249,6 +291,8 @@ export type Database = {
       messages:       { Row: Message;    Insert: Partial<Message>    & { job_id: string; sender_id: string; body: string }; Update: Partial<Message> };
       social_posts:  { Row: SocialPost;  Insert: Partial<SocialPost>  & { platform: SocialPlatform; caption: string }; Update: Partial<SocialPost> };
       site_settings: { Row: SiteSettings; Insert: Partial<SiteSettings>; Update: Partial<SiteSettings> };
+      subcontractors: { Row: Subcontractor; Insert: Partial<Subcontractor> & { contact_name: string; trade: SubcontractorTrade }; Update: Partial<Subcontractor> };
+      subcontractor_payments: { Row: SubcontractorPayment; Insert: Partial<SubcontractorPayment> & { subcontractor_id: string; amount: number }; Update: Partial<SubcontractorPayment> };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

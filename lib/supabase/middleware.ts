@@ -51,7 +51,9 @@ export async function updateSession(request: NextRequest) {
       .select("role")
       .eq("id", user.id)
       .single<{ role: string }>();
-    if (profile?.role !== "admin") {
+    const role = profile?.role ?? "";
+    const allowed = role === "admin" || role === "super_admin" || role === "staff";
+    if (!allowed) {
       const url = request.nextUrl.clone();
       url.pathname = "/portal";
       return NextResponse.redirect(url);

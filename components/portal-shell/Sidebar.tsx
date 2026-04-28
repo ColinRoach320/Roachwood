@@ -12,6 +12,8 @@ import {
   FileText,
   Globe,
   FileCheck2,
+  HardHat,
+  ShieldCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -28,24 +30,24 @@ interface NavItem {
 // passes component references across the RSC boundary. Same pattern as
 // BottomNav — passing functions to client components throws
 // "Functions cannot be passed directly to Client Components".
-const ITEMS: Record<Scope, NavItem[]> = {
-  admin: [
-    { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/admin/jobs", label: "Jobs", icon: Hammer },
-    { href: "/admin/clients", label: "Clients", icon: Users },
-    { href: "/admin/estimates", label: "Estimates", icon: ClipboardList },
-    { href: "/admin/invoices", label: "Invoices", icon: Receipt },
-    { href: "/admin/expenses", label: "Expenses", icon: Wallet },
-    { href: "/admin/documents", label: "Documents", icon: FileText },
-    { href: "/admin/content", label: "Site Content", icon: Globe },
-  ],
-  portal: [
-    { href: "/portal", label: "Overview", icon: LayoutDashboard },
-    { href: "/portal/jobs", label: "Projects", icon: Hammer },
-    { href: "/portal/approvals", label: "Approvals", icon: FileCheck2 },
-    { href: "/portal/documents", label: "Documents", icon: FileText },
-  ],
-};
+const ADMIN_BASE: NavItem[] = [
+  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/jobs", label: "Jobs", icon: Hammer },
+  { href: "/admin/clients", label: "Clients", icon: Users },
+  { href: "/admin/estimates", label: "Estimates", icon: ClipboardList },
+  { href: "/admin/invoices", label: "Invoices", icon: Receipt },
+  { href: "/admin/expenses", label: "Expenses", icon: Wallet },
+  { href: "/admin/subcontractors", label: "Subcontractors", icon: HardHat },
+  { href: "/admin/documents", label: "Documents", icon: FileText },
+  { href: "/admin/content", label: "Site Content", icon: Globe },
+];
+
+const PORTAL_ITEMS: NavItem[] = [
+  { href: "/portal", label: "Overview", icon: LayoutDashboard },
+  { href: "/portal/jobs", label: "Projects", icon: Hammer },
+  { href: "/portal/approvals", label: "Approvals", icon: FileCheck2 },
+  { href: "/portal/documents", label: "Documents", icon: FileText },
+];
 
 const EYEBROW: Record<Scope, string> = {
   admin: "Workshop",
@@ -54,11 +56,21 @@ const EYEBROW: Record<Scope, string> = {
 
 interface Props {
   scope: Scope;
+  /** Profile role — drives super-admin-only items like Team. */
+  role?: string;
 }
 
-export function Sidebar({ scope }: Props) {
+export function Sidebar({ scope, role }: Props) {
   const pathname = usePathname();
-  const items = ITEMS[scope];
+  const items: NavItem[] =
+    scope === "admin"
+      ? role === "super_admin"
+        ? [
+            ...ADMIN_BASE,
+            { href: "/admin/team", label: "Team", icon: ShieldCheck },
+          ]
+        : ADMIN_BASE
+      : PORTAL_ITEMS;
 
   return (
     <nav className="flex flex-col gap-1 p-4">

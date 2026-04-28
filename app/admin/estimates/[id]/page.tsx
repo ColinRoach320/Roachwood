@@ -52,7 +52,13 @@ export default async function EstimateDetailPage({ params }: PageProps) {
   const items = (estimate.line_items ?? []) as LineItem[];
   const emailAction = sendEstimateEmail.bind(null, id);
   const defaultSubject = `Estimate from Roachwood — ${job?.title ?? estimate.title}`;
-  const defaultMessage = `Hi ${client?.contact_name ?? "there"},\n\nPlease find attached the estimate for ${job?.title ?? "your project"}. Let me know if you have any questions or want to make changes.\n\nThanks,\nColin Roach\nRoachwood`;
+  const defaultMessage =
+    `Hi ${client?.contact_name ?? "there"},\n\n` +
+    `Thank you for the opportunity — we appreciate you considering Roachwood for your project. ` +
+    `Please find your estimate attached. It covers the full scope of work we discussed, including materials, labor, and timeline.\n\n` +
+    `If you have any questions or would like to make any changes before moving forward, don't hesitate to reach out. ` +
+    `We look forward to hearing from you.\n\n` +
+    `Colin Roach | Roachwood | (586) 344-0982 | roachwood.co`;
 
   return (
     <div className="space-y-8">

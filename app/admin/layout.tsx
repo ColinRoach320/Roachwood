@@ -21,14 +21,16 @@ export default async function AdminLayout({
     .eq("id", user.id)
     .single<{ role: string; full_name: string | null; email: string | null }>();
 
-  if (profile?.role !== "admin") redirect("/portal");
+  const role = profile?.role ?? "";
+  const isAdmin = role === "admin" || role === "super_admin" || role === "staff";
+  if (!isAdmin) redirect("/portal");
 
   return (
     <div className="min-h-screen bg-charcoal-900">
       <Topbar user={profile ?? { email: user.email }} scope="Staff" />
       <div className="mx-auto grid max-w-[1400px] lg:grid-cols-[260px_1fr]">
         <aside className="hidden border-r border-charcoal-800 lg:block lg:min-h-[calc(100vh-65px)]">
-          <Sidebar scope="admin" />
+          <Sidebar scope="admin" role={role} />
         </aside>
         <main className="px-4 py-6 pb-24 sm:px-6 lg:p-8 lg:pb-8">
           {children}

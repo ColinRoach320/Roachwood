@@ -60,7 +60,15 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
   const emailAction = sendInvoiceEmail.bind(null, id);
 
   const defaultSubject = `Invoice from Roachwood — ${job?.title ?? invoice.title}`;
-  const defaultMessage = `Hi ${client?.contact_name ?? "there"},\n\nPlease find attached the invoice for ${job?.title ?? "your project"}. Let me know if you have any questions.\n\nThanks,\nColin Roach\nRoachwood`;
+  const dueLabel = invoice.due_date
+    ? formatDate(invoice.due_date)
+    : "the date noted on the invoice";
+  const defaultMessage =
+    `Hi ${client?.contact_name ?? "there"},\n\n` +
+    `Please find your invoice attached for the work completed on ${job?.title ?? "your project"}. ` +
+    `Payment is due by ${dueLabel}. You can pay online using the link in the invoice, or reach out to arrange another method.\n\n` +
+    `Thank you for choosing Roachwood — it was a pleasure working on your project.\n\n` +
+    `Colin Roach | Roachwood | (586) 344-0982 | roachwood.co`;
 
   return (
     <div className="space-y-8">

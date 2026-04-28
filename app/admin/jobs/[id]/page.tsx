@@ -22,7 +22,9 @@ import {
 import { JobUpdateForm } from "@/components/admin/JobUpdateForm";
 import { PhotoUploadButton } from "@/components/admin/PhotoUploadButton";
 import { MessageThread } from "@/components/admin/MessageThread";
+import { EmailDocumentForm } from "@/components/admin/EmailDocumentForm";
 import { addJobUpdate } from "../actions";
+import { sendJobCompleteEmail } from "../email-actions";
 import { uploadJobPhoto } from "./photo-actions";
 import { sendMessage } from "./message-actions";
 import { getDesignIdeaSignedUrl } from "@/app/portal/jobs/[id]/design-ideas-actions";
@@ -188,6 +190,22 @@ export default async function JobDetailPage({ params }: PageProps) {
   const updateAction = addJobUpdate.bind(null, id);
   const photoAction = uploadJobPhoto.bind(null, id);
   const messageAction = sendMessage.bind(null, id);
+  const completeEmailAction = sendJobCompleteEmail.bind(null, id);
+
+  // Pre-filled review-request copy. Google review URL is a placeholder
+  // until Colin sets up the live link.
+  const completeSubject = `Thank You — ${job.title} is Complete`;
+  const completeMessage =
+    `Hi ${client?.contact_name ?? "there"},\n\n` +
+    `We wanted to take a moment to thank you for putting your trust in Roachwood. ` +
+    `It was a pleasure working on your project and we hope you love the finished result.\n\n` +
+    `If you are happy with the work, the best way to support us is by leaving a review — ` +
+    `it helps other homeowners find us and allows us to keep doing great work in the community.\n\n` +
+    `[Google Review link — placeholder for now]\n\n` +
+    `And if there is anything at all that needs attention, please do not hesitate to reach out. ` +
+    `We stand behind our work.\n\n` +
+    `Thank you again — we hope to work with you on your next project.\n\n` +
+    `Colin Roach | Roachwood | (586) 344-0982 | roachwood.co`;
 
   return (
     <div className="space-y-8">
@@ -217,6 +235,16 @@ export default async function JobDetailPage({ params }: PageProps) {
         <ButtonLink href={`/admin/jobs/${id}/edit`} variant="secondary">
           <Pencil className="h-4 w-4" /> Edit job
         </ButtonLink>
+      </div>
+
+      <div className="flex flex-wrap items-stretch gap-2 sm:items-center">
+        <EmailDocumentForm
+          action={completeEmailAction}
+          documentLabel="job complete + review"
+          defaultTo={client?.email ?? ""}
+          defaultSubject={completeSubject}
+          defaultMessage={completeMessage}
+        />
       </div>
 
       {/* Stat strip */}
