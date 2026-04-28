@@ -1,11 +1,18 @@
 import Link from "next/link";
+import { Sparkles } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { JobStatusBadge } from "@/components/ui/Badge";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
 import type { Job, Approval } from "@/lib/types";
 
-export default async function ClientHomePage() {
+interface PageProps {
+  searchParams: Promise<{ welcome?: string }>;
+}
+
+export default async function ClientHomePage({ searchParams }: PageProps) {
+  const { welcome } = await searchParams;
+  const isFirstVisit = welcome === "1";
   const supabase = await createClient();
   const {
     data: { user },
@@ -33,14 +40,33 @@ export default async function ClientHomePage() {
 
   return (
     <div className="space-y-10">
-      <div>
-        <p className="rw-eyebrow">Welcome</p>
-        <h1 className="rw-display mt-2 text-3xl">Welcome back, {firstName}</h1>
-        <p className="mt-2 text-sm text-charcoal-400 max-w-xl">
-          Track progress, review approvals, and download documents for every
-          project we&apos;re running together.
-        </p>
-      </div>
+      {isFirstVisit ? (
+        <div className="rounded-xl border border-gold-500/40 bg-gold-500/5 p-6 sm:p-8">
+          <div className="flex items-start gap-3">
+            <Sparkles className="mt-1 h-5 w-5 shrink-0 text-gold-400" />
+            <div>
+              <p className="rw-eyebrow text-gold-400">Welcome aboard</p>
+              <h1 className="rw-display mt-2 text-2xl sm:text-3xl">
+                Welcome to your Roachwood project portal, {firstName}.
+              </h1>
+              <p className="mt-3 max-w-xl text-sm text-charcoal-200">
+                Your project is ready to view below. Approvals, payments,
+                documents, and progress photos all live here — bookmark
+                this page so you can come back any time.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <p className="rw-eyebrow">Welcome</p>
+          <h1 className="rw-display mt-2 text-3xl">Welcome back, {firstName}</h1>
+          <p className="mt-2 text-sm text-charcoal-400 max-w-xl">
+            Track progress, review approvals, and download documents for every
+            project we&apos;re running together.
+          </p>
+        </div>
+      )}
 
       {approvals.length > 0 ? (
         <Card className="border-gold-500/40">

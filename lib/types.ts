@@ -37,6 +37,7 @@ export interface Client {
   phone: string | null;
   address: string | null;
   notes: string | null;
+  portal_invited_at: string | null;
   created_at: string;
 }
 

@@ -25,7 +25,7 @@ export default async function ClientDetailPage({ params }: PageProps) {
   const { data: client } = await supabase
     .from("clients")
     .select(
-      "id, contact_name, company_name, email, phone, address, notes, profile_id, created_at",
+      "id, contact_name, company_name, email, phone, address, notes, profile_id, portal_invited_at, created_at",
     )
     .eq("id", id)
     .maybeSingle<
@@ -39,6 +39,7 @@ export default async function ClientDetailPage({ params }: PageProps) {
         | "address"
         | "notes"
         | "profile_id"
+        | "portal_invited_at"
         | "created_at"
       >
     >();
@@ -119,7 +120,11 @@ export default async function ClientDetailPage({ params }: PageProps) {
             </li>
           </ul>
           <div className="mt-5 border-t border-charcoal-700 pt-4">
-            <PortalInviteButton hasEmail={!!client.email} />
+            <PortalInviteButton
+              clientId={client.id}
+              hasEmail={!!client.email}
+              invitedAt={client.portal_invited_at ?? null}
+            />
           </div>
         </Card>
 
