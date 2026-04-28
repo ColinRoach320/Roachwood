@@ -25,6 +25,9 @@ export default async function SiteSettingsPage() {
     email: null,
     service_area: null,
     tagline: null,
+    google_review_url: null,
+    houzz_url: null,
+    instagram_url: null,
     updated_at: new Date().toISOString(),
   };
 

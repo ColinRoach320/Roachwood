@@ -11,6 +11,7 @@ import {
   Lightbulb,
   MessageSquare,
   GitBranch,
+  CalendarPlus,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/ButtonLink";
@@ -44,7 +45,9 @@ import type {
   Message,
   Profile,
   ChangeOrder,
+  SiteSettings,
 } from "@/lib/types";
+import { googleCalendarUrl } from "@/lib/google-calendar";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -129,6 +132,18 @@ export default async function JobDetailPage({ params }: PageProps) {
     "id" | "co_number" | "title" | "status" | "total" | "created_at"
   >[];
 
+  // Site settings drive the review/social links that get injected into
+  // the job-complete email template. Singleton row, ID = 1.
+  const { data: siteSettings } = await supabase
+    .from("site_settings")
+    .select("google_review_url, houzz_url, instagram_url")
+    .eq("id", 1)
+    .maybeSingle<
+      Pick<SiteSettings, "google_review_url" | "houzz_url" | "instagram_url">
+    >();
+
+  const calendarUrl = googleCalendarUrl(job);
+
   // Split documents into photos vs files using the new kind column.
   const allDocs = (documents ?? []) as DocumentRow[];
   const photos = allDocs.filter((d) => d.kind === "photo");
@@ -206,16 +221,29 @@ export default async function JobDetailPage({ params }: PageProps) {
   const messageAction = sendMessage.bind(null, id);
   const completeEmailAction = sendJobCompleteEmail.bind(null, id);
 
-  // Pre-filled review-request copy. Google review URL is a placeholder
-  // until Colin sets up the live link.
+  // Pre-filled review-request copy. Review/social URLs come from
+  // site_settings — Colin sets them once in /admin/content/settings
+  // and they show up here automatically. Lines for missing URLs are
+  // omitted so the email never reads "[blank]".
   const completeSubject = `Thank You — ${job.title} is Complete`;
+  const reviewLines: string[] = [];
+  if (siteSettings?.google_review_url) {
+    reviewLines.push(`⭐ Leave a Google Review → ${siteSettings.google_review_url}`);
+  }
+  if (siteSettings?.houzz_url) {
+    reviewLines.push(`🏠 Review us on Houzz → ${siteSettings.houzz_url}`);
+  }
+  if (siteSettings?.instagram_url) {
+    reviewLines.push(`📸 Follow us on Instagram → ${siteSettings.instagram_url}`);
+  }
+  const reviewSection = reviewLines.length
+    ? `We'd love to hear from you — leaving a review takes less than a minute and means the world to a small business:\n\n${reviewLines.join("\n")}\n\n`
+    : "";
   const completeMessage =
     `Hi ${client?.contact_name ?? "there"},\n\n` +
     `We wanted to take a moment to thank you for putting your trust in Roachwood. ` +
     `It was a pleasure working on your project and we hope you love the finished result.\n\n` +
-    `If you are happy with the work, the best way to support us is by leaving a review — ` +
-    `it helps other homeowners find us and allows us to keep doing great work in the community.\n\n` +
-    `[Google Review link — placeholder for now]\n\n` +
+    reviewSection +
     `And if there is anything at all that needs attention, please do not hesitate to reach out. ` +
     `We stand behind our work.\n\n` +
     `Thank you again — we hope to work with you on your next project.\n\n` +
@@ -259,6 +287,18 @@ export default async function JobDetailPage({ params }: PageProps) {
         >
           <GitBranch className="h-4 w-4" /> New change order
         </ButtonLink>
+        {calendarUrl ? (
+          <ButtonLink
+            href={calendarUrl}
+            target="_blank"
+            rel="noopener"
+            size="lg"
+            variant="outline"
+            className="w-full justify-center sm:w-auto"
+          >
+            <CalendarPlus className="h-4 w-4" /> Add to Google Calendar
+          </ButtonLink>
+        ) : null}
         <EmailDocumentForm
           action={completeEmailAction}
           documentLabel="job complete + review"

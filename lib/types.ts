@@ -205,6 +205,9 @@ export interface SiteSettings {
   email: string | null;
   service_area: string | null;
   tagline: string | null;
+  google_review_url: string | null;
+  houzz_url: string | null;
+  instagram_url: string | null;
   updated_at: string;
 }
 

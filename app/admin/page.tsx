@@ -15,6 +15,7 @@ import type {
   Estimate,
   Invoice,
   JobUpdate,
+  Client,
 } from "@/lib/types";
 
 export default async function AdminDashboardPage() {
@@ -96,6 +97,51 @@ export default async function AdminDashboardPage() {
     0,
   );
 
+  // Pull the client rows for any job we'll surface in This Week / Coming
+  // Up so the lists show the contact name without an N+1.
+  const clientIds = Array.from(
+    new Set(jobs.map((j) => j.client_id)),
+  );
+  const { data: clientsRows } = clientIds.length
+    ? await supabase
+        .from("clients")
+        .select("id, contact_name, company_name")
+        .in("id", clientIds)
+    : { data: [] };
+  const clientMap = new Map(
+    ((clientsRows ?? []) as Pick<Client, "id" | "contact_name" | "company_name">[]).map(
+      (c) => [c.id, c],
+    ),
+  );
+
+  // Date math anchored to Arizona local time. We compare against the
+  // job's start_date which is a plain `date` column — string compare on
+  // ISO YYYY-MM-DD is correct because all values share the same shape.
+  const todayPhoenix = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "America/Phoenix" }),
+  );
+  const todayIso = todayPhoenix.toISOString().slice(0, 10);
+  const sevenDays = new Date(todayPhoenix);
+  sevenDays.setDate(sevenDays.getDate() + 7);
+  const sevenIso = sevenDays.toISOString().slice(0, 10);
+  const thirtyDays = new Date(todayPhoenix);
+  thirtyDays.setDate(thirtyDays.getDate() + 30);
+  const thirtyIso = thirtyDays.toISOString().slice(0, 10);
+
+  const upcoming = jobs
+    .filter(
+      (j) =>
+        j.start_date &&
+        j.start_date >= todayIso &&
+        j.status !== "cancelled" &&
+        j.status !== "completed",
+    )
+    .sort((a, b) => (a.start_date! < b.start_date! ? -1 : 1));
+  const thisWeek = upcoming.filter((j) => j.start_date! < sevenIso);
+  const comingUp = upcoming.filter(
+    (j) => j.start_date! >= sevenIso && j.start_date! <= thirtyIso,
+  );
+
   // Arizona doesn't observe DST — always UTC-7. Pin the formatter to
   // America/Phoenix so the dashboard date matches Colin's wall clock
   // even when the server (Vercel) renders in UTC.
@@ -150,6 +196,24 @@ export default async function AdminDashboardPage() {
       </div>
 
       <QuickActionsBar />
+
+      {/* Upcoming schedule — replaces the calendar widget */}
+      <section className="grid gap-4 md:grid-cols-2">
+        <ScheduleCard
+          title="This week"
+          subtitle="Jobs starting in the next 7 days."
+          jobs={thisWeek}
+          clientMap={clientMap}
+          empty="No jobs starting this week."
+        />
+        <ScheduleCard
+          title="Coming up"
+          subtitle="Jobs starting in the next 30 days."
+          jobs={comingUp}
+          clientMap={clientMap}
+          empty="Nothing scheduled yet."
+        />
+      </section>
 
       {/* Outstanding action cards (red) */}
       {(pendingApprovals.length > 0 ||
@@ -369,6 +433,75 @@ function Stat({
     );
   }
   return <div className={`${base} ${idle}`}>{inner}</div>;
+}
+
+function ScheduleCard({
+  title,
+  subtitle,
+  jobs,
+  clientMap,
+  empty,
+}: {
+  title: string;
+  subtitle: string;
+  jobs: Job[];
+  clientMap: Map<string, Pick<Client, "id" | "contact_name" | "company_name">>;
+  empty: string;
+}) {
+  return (
+    <Card className="p-0 overflow-hidden">
+      <CardHeader className="px-6 pt-6">
+        <div>
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>
+            {jobs.length === 0
+              ? subtitle
+              : `${subtitle} · ${jobs.length} ${jobs.length === 1 ? "job" : "jobs"}`}
+          </CardDescription>
+        </div>
+      </CardHeader>
+      {jobs.length === 0 ? (
+        <p className="px-6 py-6 text-sm text-charcoal-400">{empty}</p>
+      ) : (
+        <ul className="divide-y divide-charcoal-700 border-t border-charcoal-700">
+          {jobs.map((j) => {
+            const c = clientMap.get(j.client_id);
+            return (
+              <li key={j.id}>
+                <Link
+                  href={`/admin/jobs/${j.id}`}
+                  className="block px-6 py-3 transition hover:bg-charcoal-700/30"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-charcoal-100">{j.title}</p>
+                      <p className="truncate text-xs text-charcoal-400">
+                        {c?.contact_name ?? "—"}
+                        {c?.company_name ? ` · ${c.company_name}` : ""}
+                      </p>
+                      {j.address ? (
+                        <p className="truncate text-xs text-charcoal-500">
+                          {j.address}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-charcoal-500">
+                        Starts
+                      </p>
+                      <p className="font-display text-sm text-gold-300 tabular-nums">
+                        {formatDate(j.start_date)}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
 }
 
 function ActionCard({
