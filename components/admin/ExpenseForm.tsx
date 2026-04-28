@@ -119,11 +119,20 @@ export function ExpenseForm({
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-charcoal-700 pt-5">
-          <ButtonLink href={cancelHref} variant="ghost">
+        <div className="flex flex-col-reverse gap-3 border-t border-charcoal-700 pt-5 sm:flex-row sm:items-center sm:justify-end">
+          <ButtonLink
+            href={cancelHref}
+            variant="ghost"
+            className="w-full justify-center sm:w-auto"
+          >
             Cancel
           </ButtonLink>
-          <SubmitButton label={submitLabel} pendingLabel="Saving…" />
+          <SubmitButton
+            label={submitLabel}
+            pendingLabel="Saving…"
+            size="lg"
+            className="w-full justify-center sm:w-auto"
+          />
         </div>
       </form>
     </FormShell>

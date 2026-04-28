@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { SearchInput } from "@/components/admin/SearchInput";
+import { DeleteClientButton } from "@/components/admin/DeleteClientButton";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
 import type { Client } from "@/lib/types";
@@ -61,12 +62,13 @@ export default async function AdminClientsPage({ searchParams }: PageProps) {
               <th className="px-6 py-3 font-medium">Email</th>
               <th className="px-6 py-3 font-medium">Phone</th>
               <th className="px-6 py-3 font-medium">Added</th>
+              <th className="px-6 py-3 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-charcoal-700">
             {(clients ?? []).length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-charcoal-400">
+                <td colSpan={6} className="px-6 py-12 text-center text-charcoal-400">
                   {q ? `No clients matched “${q}.”` : "No clients yet."}
                 </td>
               </tr>
@@ -85,6 +87,9 @@ export default async function AdminClientsPage({ searchParams }: PageProps) {
                   <td className="px-6 py-3 text-charcoal-300">{c.email ?? "—"}</td>
                   <td className="px-6 py-3 text-charcoal-300">{c.phone ?? "—"}</td>
                   <td className="px-6 py-3 text-charcoal-400">{formatDate(c.created_at)}</td>
+                  <td className="px-6 py-3 text-right">
+                    <DeleteClientButton id={c.id} name={c.contact_name} />
+                  </td>
                 </tr>
               ))
             )}

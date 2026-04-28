@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/Ca
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { JobStatusBadge } from "@/components/ui/Badge";
 import { PortalInviteButton } from "@/components/admin/PortalInviteButton";
+import { DeleteClientButton } from "@/components/admin/DeleteClientButton";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Client, Job } from "@/lib/types";
@@ -70,7 +71,8 @@ export default async function ClientDetailPage({ params }: PageProps) {
             <p className="mt-1 text-charcoal-300">{client.company_name}</p>
           ) : null}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <DeleteClientButton id={id} name={client.contact_name} variant="full" />
           <ButtonLink href={`/admin/clients/${id}/edit`} variant="secondary">
             <Pencil className="h-4 w-4" /> Edit
           </ButtonLink>

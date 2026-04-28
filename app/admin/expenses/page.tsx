@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Boxes, HardHat, Users, Wrench, Package } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -11,15 +11,15 @@ import { ExpenseCategoryBadge } from "@/components/ui/Badge";
 import { SearchInput } from "@/components/admin/SearchInput";
 import { StatusFilter } from "@/components/admin/StatusFilter";
 import { createClient } from "@/lib/supabase/server";
-import { formatCurrency, formatDate, formatMoney } from "@/lib/utils";
-import type { Expense, Job } from "@/lib/types";
+import { formatDate, formatMoney } from "@/lib/utils";
+import type { Expense, ExpenseCategory, Job } from "@/lib/types";
 
-const CATEGORY_OPTIONS = [
-  { value: "materials", label: "Materials" },
-  { value: "labor", label: "Labor" },
-  { value: "subcontractor", label: "Subcontractor" },
-  { value: "equipment", label: "Equipment" },
-  { value: "other", label: "Other" },
+const CATEGORY_OPTIONS: { value: ExpenseCategory; label: string; icon: React.ElementType }[] = [
+  { value: "materials", label: "Materials", icon: Boxes },
+  { value: "labor", label: "Labor", icon: HardHat },
+  { value: "subcontractor", label: "Subcontractor", icon: Users },
+  { value: "equipment", label: "Equipment", icon: Wrench },
+  { value: "other", label: "Other", icon: Package },
 ];
 
 interface PageProps {
@@ -30,7 +30,13 @@ export default async function AdminExpensesPage({ searchParams }: PageProps) {
   const { q, status } = await searchParams;
   const supabase = await createClient();
 
-  // Reuse the StatusFilter component by treating "category" as the status.
+  // Two queries: one for the always-visible breakdown (every expense),
+  // one for the list below (filtered by pill + search). Keeps the
+  // breakdown stable as Colin clicks pills.
+  const { data: allExpenses } = await supabase
+    .from("expenses")
+    .select("amount, category");
+
   let query = supabase
     .from("expenses")
     .select("*")
@@ -53,9 +59,22 @@ export default async function AdminExpensesPage({ searchParams }: PageProps) {
     (jobs ?? []).map((j: Pick<Job, "id" | "title">) => [j.id, j]),
   );
 
-  const total = (expenses ?? []).reduce(
+  const filteredTotal = (expenses ?? []).reduce(
     (sum, e) => sum + Number(e.amount ?? 0),
     0,
+  );
+
+  const grandTotal = (allExpenses ?? []).reduce(
+    (sum, e) => sum + Number(e.amount ?? 0),
+    0,
+  );
+  const byCategory = (allExpenses ?? []).reduce<Record<string, number>>(
+    (acc, e) => {
+      const key = e.category ?? "other";
+      acc[key] = (acc[key] ?? 0) + Number(e.amount ?? 0);
+      return acc;
+    },
+    {},
   );
 
   return (
@@ -70,10 +89,45 @@ export default async function AdminExpensesPage({ searchParams }: PageProps) {
         </ButtonLink>
       </div>
 
+      {/* Breakdown — grand total + per-category, always visible */}
+      <Card>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="rw-eyebrow">Grand total</p>
+            <p className="mt-1 font-display text-3xl text-charcoal-50 tabular-nums">
+              {formatMoney(grandTotal)}
+            </p>
+          </div>
+          <p className="text-xs uppercase tracking-[0.18em] text-charcoal-400">
+            {(allExpenses ?? []).length} record
+            {(allExpenses ?? []).length === 1 ? "" : "s"}
+          </p>
+        </div>
+        <div className="mt-5 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          {CATEGORY_OPTIONS.map((c) => {
+            const Icon = c.icon;
+            return (
+              <div
+                key={c.value}
+                className="rounded-lg border border-charcoal-700 bg-charcoal-900/60 p-3"
+              >
+                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-charcoal-400">
+                  <Icon className="h-3.5 w-3.5" strokeWidth={1.6} />
+                  {c.label}
+                </div>
+                <p className="mt-1.5 font-display text-lg text-charcoal-50 tabular-nums">
+                  {formatMoney(byCategory[c.value] ?? 0)}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
       <div className="flex flex-wrap items-center justify-between gap-4">
         <StatusFilter
           param="status"
-          options={CATEGORY_OPTIONS}
+          options={CATEGORY_OPTIONS.map((c) => ({ value: c.value, label: c.label }))}
           allLabel="All categories"
         />
         <SearchInput placeholder="Search vendor, notes…" />
@@ -82,11 +136,16 @@ export default async function AdminExpensesPage({ searchParams }: PageProps) {
       <Card className="p-0 overflow-hidden">
         <CardHeader className="px-6 pt-6">
           <div>
-            <CardTitle>All expenses</CardTitle>
+            <CardTitle>
+              {status
+                ? CATEGORY_OPTIONS.find((c) => c.value === status)?.label ?? "Filtered"
+                : "All expenses"}
+            </CardTitle>
             <CardDescription>
               {(expenses ?? []).length} record
               {(expenses ?? []).length === 1 ? "" : "s"} ·{" "}
-              {formatCurrency(total)} total.
+              {formatMoney(filteredTotal)}
+              {status || q ? " (filtered)" : " total"}.
             </CardDescription>
           </div>
         </CardHeader>

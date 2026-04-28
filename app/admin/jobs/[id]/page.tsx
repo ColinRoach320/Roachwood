@@ -169,6 +169,13 @@ export default async function JobDetailPage({ params }: PageProps) {
     (sum, e) => sum + Number(e.amount ?? 0),
     0,
   );
+  const expenseByCategory = ((expenses ?? []) as Expense[]).reduce<
+    Record<string, number>
+  >((acc, e) => {
+    const key = e.category ?? "other";
+    acc[key] = (acc[key] ?? 0) + Number(e.amount ?? 0);
+    return acc;
+  }, {});
   const invoicedTotal = (invoices ?? []).reduce(
     (sum, i) => sum + Number(i.total ?? 0),
     0,
@@ -399,6 +406,22 @@ export default async function JobDetailPage({ params }: PageProps) {
             <Plus className="h-4 w-4" /> Log expense
           </ButtonLink>
         </CardHeader>
+        {(expenses ?? []).length > 0 ? (
+          <div className="grid grid-cols-2 gap-2 border-y border-charcoal-700 bg-charcoal-900/40 px-6 py-4 sm:grid-cols-3 lg:grid-cols-5">
+            {(["materials", "labor", "subcontractor", "equipment", "other"] as const).map(
+              (key) => (
+                <div key={key} className="rounded-md bg-charcoal-900/60 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-charcoal-400">
+                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                  </p>
+                  <p className="mt-1 font-display text-base text-charcoal-50 tabular-nums">
+                    {formatMoney(expenseByCategory[key] ?? 0)}
+                  </p>
+                </div>
+              ),
+            )}
+          </div>
+        ) : null}
         <table className="w-full text-sm">
           <thead className="bg-charcoal-900/60 border-y border-charcoal-700">
             <tr className="text-left text-[10px] uppercase tracking-[0.18em] text-charcoal-400">
