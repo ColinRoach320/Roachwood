@@ -35,9 +35,9 @@ export default async function EstimateDetailPage({ params }: PageProps) {
 
   const { data: job } = await supabase
     .from("jobs")
-    .select("id, title, client_id")
+    .select("id, title, description, client_id")
     .eq("id", estimate.job_id)
-    .maybeSingle<Pick<Job, "id" | "title" | "client_id">>();
+    .maybeSingle<Pick<Job, "id" | "title" | "description" | "client_id">>();
 
   const { data: client } = job
     ? await supabase
@@ -52,9 +52,14 @@ export default async function EstimateDetailPage({ params }: PageProps) {
   const items = (estimate.line_items ?? []) as LineItem[];
   const emailAction = sendEstimateEmail.bind(null, id);
   const defaultSubject = `Estimate from Roachwood — ${job?.title ?? estimate.title}`;
+  // Job description takes precedence; estimate notes is the fallback.
+  // Both blank → no scope line at all (don't email "Scope of work:" empty).
+  const scope = job?.description?.trim() || estimate.notes?.trim() || "";
+  const scopeLine = scope ? `Scope of work: ${scope}\n\n` : "";
   const defaultMessage =
     `Hi ${client?.contact_name ?? "there"},\n\n` +
-    `Thank you for the opportunity — we appreciate you considering Roachwood for your project. ` +
+    `Thank you for the opportunity — we appreciate you considering Roachwood for your project.\n\n` +
+    scopeLine +
     `Please find your estimate attached. It covers the full scope of work we discussed, including materials, labor, and timeline.\n\n` +
     `If you have any questions or would like to make any changes before moving forward, don't hesitate to reach out. ` +
     `We look forward to hearing from you.\n\n` +

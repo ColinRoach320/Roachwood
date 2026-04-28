@@ -38,9 +38,9 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
 
   const { data: job } = await supabase
     .from("jobs")
-    .select("id, title, client_id")
+    .select("id, title, description, client_id")
     .eq("id", invoice.job_id)
-    .maybeSingle<Pick<Job, "id" | "title" | "client_id">>();
+    .maybeSingle<Pick<Job, "id" | "title" | "description" | "client_id">>();
 
   const { data: client } = job
     ? await supabase
@@ -73,9 +73,14 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
   const dueLabel = invoice.due_date
     ? formatDate(invoice.due_date)
     : "the date noted on the invoice";
+  // Job description first; invoice notes is the fallback. Both blank
+  // → no scope line at all.
+  const invScope = job?.description?.trim() || invoice.notes?.trim() || "";
+  const invScopeLine = invScope ? `Scope of work: ${invScope}\n\n` : "";
   const defaultMessage =
     `Hi ${client?.contact_name ?? "there"},\n\n` +
-    `Please find your invoice attached for the work completed on ${job?.title ?? "your project"}. ` +
+    `Please find your invoice attached for the work completed on ${job?.title ?? "your project"}.\n\n` +
+    invScopeLine +
     `Payment is due by ${dueLabel}. You can pay online using the link in the invoice, or reach out to arrange another method.\n\n` +
     `Thank you for choosing Roachwood — it was a pleasure working on your project.\n\n` +
     `Colin Roach | Roachwood | (586) 344-0982 | roachwood.co`;

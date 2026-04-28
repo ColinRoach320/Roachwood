@@ -239,8 +239,15 @@ export default async function JobDetailPage({ params }: PageProps) {
   const reviewSection = reviewLines.length
     ? `We'd love to hear from you — leaving a review takes less than a minute and means the world to a small business:\n\n${reviewLines.join("\n")}\n\n`
     : "";
+  // "Project: <title> — <description>" header line. Skip the whole
+  // line when description is blank — don't ship a dangling em-dash.
+  const jobDescription = job.description?.trim() || "";
+  const projectLine = jobDescription
+    ? `Project: ${job.title} — ${jobDescription}\n\n`
+    : "";
   const completeMessage =
     `Hi ${client?.contact_name ?? "there"},\n\n` +
+    projectLine +
     `We wanted to take a moment to thank you for putting your trust in Roachwood. ` +
     `It was a pleasure working on your project and we hope you love the finished result.\n\n` +
     reviewSection +
