@@ -18,11 +18,34 @@ export default async function ClientDetailPage({ params }: PageProps) {
   const { id } = await params;
   const supabase = await createClient();
 
+  // TEMP DEBUG — investigating production 404s. Surfaces what's
+  // actually coming back from auth + the row query so we can see
+  // whether (a) the session is missing, (b) RLS is filtering, or
+  // (c) the row genuinely doesn't exist for this UUID. Remove once
+  // the cause is confirmed.
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+  console.log("[client-detail-debug] env", {
+    supabaseHost: url ? new URL(url).host : "(missing)",
+    anonKeyLen: anonKey.length,
+    anonKeyPrefix: anonKey.slice(0, 8),
+  });
+  console.log("[client-detail-debug] params", { id });
+  const {
+    data: { user },
+    error: userErr,
+  } = await supabase.auth.getUser();
+  console.log("[client-detail-debug] getUser", {
+    userId: user?.id ?? null,
+    email: user?.email ?? null,
+    userErr: userErr?.message ?? null,
+  });
+
   // Read every contact field straight from the `clients` table — these
   // are the client's own values, NOT the admin's profile. Listing the
   // columns explicitly (rather than select("*")) makes that obvious at
   // the call site and immune to any future view/join shenanigans.
-  const { data: client } = await supabase
+  const { data: client, error: clientErr } = await supabase
     .from("clients")
     .select(
       "id, contact_name, company_name, email, phone, address, notes, profile_id, created_at",
@@ -42,6 +65,12 @@ export default async function ClientDetailPage({ params }: PageProps) {
         | "created_at"
       >
     >();
+  console.log("[client-detail-debug] clients query", {
+    found: !!client,
+    clientId: client?.id ?? null,
+    err: clientErr?.message ?? null,
+    errCode: clientErr?.code ?? null,
+  });
 
   if (!client) notFound();
 
