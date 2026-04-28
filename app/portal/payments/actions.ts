@@ -141,6 +141,90 @@ export async function getInvoicePaymentLink(
 }
 
 /**
+ * Generate (or return) the Stripe Payment Link for a single invoice
+ * draw. Mirrors getInvoicePaymentLink but writes to invoice_draws +
+ * tags metadata.draw_id so the webhook can flip just this draw.
+ *
+ * Ownership is enforced through RLS: the draw select only succeeds
+ * if the caller's session owns the parent invoice via the existing
+ * invoice_draws client read policy.
+ */
+export async function getDrawPaymentLink(
+  drawId: string,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { data: draw } = await supabase
+    .from("invoice_draws")
+    .select(
+      "id, invoice_id, label, amount, amount_paid, stripe_payment_link, status",
+    )
+    .eq("id", drawId)
+    .maybeSingle<{
+      id: string;
+      invoice_id: string;
+      label: string;
+      amount: number;
+      amount_paid: number;
+      stripe_payment_link: string | null;
+      status: string;
+    }>();
+  if (!draw) return { ok: false, error: "Draw not found." };
+
+  if (draw.stripe_payment_link) {
+    return { ok: true, url: draw.stripe_payment_link };
+  }
+
+  const due = Number(draw.amount ?? 0) - Number(draw.amount_paid ?? 0);
+  if (!(due > 0)) {
+    return { ok: false, error: "Draw has no balance due." };
+  }
+
+  // Need invoice title for the Stripe product name. Service-role
+  // read so we don't depend on the client's invoice RLS.
+  const { createAdminClient } = await import("@/lib/supabase/server");
+  const admin = createAdminClient();
+  const { data: invoice } = await admin
+    .from("invoices")
+    .select("title, job_id")
+    .eq("id", draw.invoice_id)
+    .single<{ title: string; job_id: string }>();
+  if (!invoice) return { ok: false, error: "Invoice not found." };
+
+  const product = await stripe.products.create({
+    name: `Roachwood — ${invoice.title} · ${draw.label}`,
+    metadata: { invoice_id: draw.invoice_id, draw_id: draw.id },
+  });
+  const price = await stripe.prices.create({
+    product: product.id,
+    unit_amount: Math.round(due * 100),
+    currency: "usd",
+  });
+  const link = await stripe.paymentLinks.create({
+    line_items: [{ price: price.id, quantity: 1 }],
+    metadata: { invoice_id: draw.invoice_id, draw_id: draw.id },
+    payment_intent_data: {
+      metadata: { invoice_id: draw.invoice_id, draw_id: draw.id },
+    },
+    after_completion: {
+      type: "hosted_confirmation",
+      hosted_confirmation: {
+        custom_message:
+          "Thanks for your payment — Roachwood will send a receipt shortly.",
+      },
+    },
+  });
+
+  await admin
+    .from("invoice_draws")
+    .update({ stripe_payment_link: link.url } as never)
+    .eq("id", drawId);
+
+  revalidatePath("/portal/payments");
+  if (invoice.job_id) revalidatePath(`/portal/jobs/${invoice.job_id}`);
+  return { ok: true, url: link.url };
+}
+
+/**
  * Detach a saved payment method from the current user's Stripe
  * customer. Verifies the PM actually belongs to this customer first
  * so a hostile caller can't pass an arbitrary id.

@@ -10,6 +10,16 @@ import type { LineItem } from "@/lib/types";
 interface Props {
   initial?: LineItem[];
   initialTaxRate?: number;
+  /**
+   * Optional callback fired whenever the line items / tax rate change.
+   * Lets a parent component (e.g., InvoiceForm with a draws editor)
+   * react to live totals without lifting all of this state up.
+   */
+  onTotalsChange?: (totals: {
+    subtotal: number;
+    tax_amount: number;
+    total: number;
+  }) => void;
 }
 
 function emptyLine(): LineItem {
@@ -29,7 +39,11 @@ function emptyLine(): LineItem {
  * final shape from FormData. A second hidden input mirrors the
  * tax_rate so totals stay in sync server-side.
  */
-export function LineItemsEditor({ initial, initialTaxRate = 0 }: Props) {
+export function LineItemsEditor({
+  initial,
+  initialTaxRate = 0,
+  onTotalsChange,
+}: Props) {
   const [items, setItems] = React.useState<LineItem[]>(
     () => initial && initial.length > 0 ? initial.map(normalize) : [emptyLine()],
   );
@@ -58,6 +72,11 @@ export function LineItemsEditor({ initial, initialTaxRate = 0 }: Props) {
   const subtotal = roundMoney(items.reduce((s, i) => s + (i.total || 0), 0));
   const taxAmount = roundMoney((subtotal * (Number(taxRate) || 0)) / 100);
   const total = roundMoney(subtotal + taxAmount);
+
+  React.useEffect(() => {
+    onTotalsChange?.({ subtotal, tax_amount: taxAmount, total });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subtotal, taxAmount, total]);
 
   return (
     <div className="space-y-4">

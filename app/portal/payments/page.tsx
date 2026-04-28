@@ -13,7 +13,8 @@ import { formatDate, formatMoney } from "@/lib/utils";
 import { AddCardForm } from "@/components/portal/AddCardForm";
 import { RemoveCardButton } from "@/components/portal/RemoveCardButton";
 import { PayNowButton } from "@/components/portal/PayNowButton";
-import type { Invoice, Job, Profile } from "@/lib/types";
+import { PortalDrawSchedule } from "@/components/portal/PortalDrawSchedule";
+import type { Invoice, InvoiceDraw, Job, Profile } from "@/lib/types";
 
 export default async function PortalPaymentsPage() {
   const supabase = await createClient();
@@ -41,15 +42,26 @@ export default async function PortalPaymentsPage() {
 
   // Invoices for the current client (RLS scopes the query). Split
   // into outstanding (sent/overdue with balance due) and history.
-  const [invoicesRes, jobsRes] = await Promise.all([
+  const [invoicesRes, jobsRes, drawsRes] = await Promise.all([
     supabase
       .from("invoices")
       .select("*")
       .order("created_at", { ascending: false }),
     supabase.from("jobs").select("id, title"),
+    supabase
+      .from("invoice_draws")
+      .select("*")
+      .order("position", { ascending: true }),
   ]);
   const invoices = (invoicesRes.data ?? []) as Invoice[];
   const jobs = (jobsRes.data ?? []) as Pick<Job, "id" | "title">[];
+  const allDraws = (drawsRes.data ?? []) as InvoiceDraw[];
+  const drawsByInvoice = new Map<string, InvoiceDraw[]>();
+  allDraws.forEach((d) => {
+    const list = drawsByInvoice.get(d.invoice_id) ?? [];
+    list.push(d);
+    drawsByInvoice.set(d.invoice_id, list);
+  });
   const jobName = (id: string) =>
     jobs.find((j) => j.id === id)?.title ?? "(project)";
 
@@ -137,29 +149,37 @@ export default async function PortalPaymentsPage() {
           </p>
         ) : (
           <ul className="mt-5 space-y-3">
-            {outstanding.map((i) => (
-              <li
-                key={i.id}
-                className="rounded-lg border border-charcoal-700 bg-charcoal-900/40 p-4"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-charcoal-100">{i.title}</p>
-                    <p className="text-xs text-charcoal-400">
-                      {jobName(i.job_id)} · Created {formatDate(i.created_at)}
-                      {i.due_date ? ` · Due ${formatDate(i.due_date)}` : ""}
-                    </p>
-                    <p className="mt-2 font-display text-xl text-charcoal-50 tabular-nums">
-                      {formatMoney(i.due)}
-                    </p>
+            {outstanding.map((i) => {
+              const draws = drawsByInvoice.get(i.id) ?? [];
+              return (
+                <li
+                  key={i.id}
+                  className="rounded-lg border border-charcoal-700 bg-charcoal-900/40 p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-charcoal-100">{i.title}</p>
+                      <p className="text-xs text-charcoal-400">
+                        {jobName(i.job_id)} · Created {formatDate(i.created_at)}
+                        {i.due_date ? ` · Due ${formatDate(i.due_date)}` : ""}
+                      </p>
+                      <p className="mt-2 font-display text-xl text-charcoal-50 tabular-nums">
+                        {formatMoney(i.due)}
+                      </p>
+                    </div>
+                    {draws.length === 0 ? (
+                      <PayNowButton
+                        invoiceId={i.id}
+                        amountLabel={formatMoney(i.due)}
+                      />
+                    ) : null}
                   </div>
-                  <PayNowButton
-                    invoiceId={i.id}
-                    amountLabel={formatMoney(i.due)}
-                  />
-                </div>
-              </li>
-            ))}
+                  {draws.length > 0 ? (
+                    <PortalDrawSchedule draws={draws} />
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         )}
       </Card>

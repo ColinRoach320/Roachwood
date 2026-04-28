@@ -23,6 +23,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { MessageThread } from "@/components/admin/MessageThread";
 import { DesignIdeaForm } from "@/components/portal/DesignIdeaForm";
+import { PortalDrawSchedule } from "@/components/portal/PortalDrawSchedule";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/utils";
 import type {
@@ -36,6 +37,7 @@ import type {
   Message,
   Profile,
   ChangeOrder,
+  InvoiceDraw,
 } from "@/lib/types";
 import { decideApproval, decideChangeOrder } from "./actions";
 import {
@@ -130,6 +132,23 @@ export default async function ClientJobDetailPage({
   const decidedChangeOrders = changeOrders.filter(
     (c) => c.status === "approved" || c.status === "declined",
   );
+
+  // Pull draws for any invoice on this job. RLS ensures we only see
+  // draws on invoices the client owns (same job FK chain).
+  const invoiceIds = invoices.map((i) => i.id);
+  const { data: drawsRows } = invoiceIds.length
+    ? await supabase
+        .from("invoice_draws")
+        .select("*")
+        .in("invoice_id", invoiceIds)
+        .order("position", { ascending: true })
+    : { data: [] };
+  const drawsByInvoice = new Map<string, InvoiceDraw[]>();
+  ((drawsRows ?? []) as InvoiceDraw[]).forEach((d) => {
+    const list = drawsByInvoice.get(d.invoice_id) ?? [];
+    list.push(d);
+    drawsByInvoice.set(d.invoice_id, list);
+  });
 
   // Sign photo URLs server-side (clients can't read the bucket directly).
   const adminClient = createAdminClient();
@@ -425,6 +444,7 @@ export default async function ClientJobDetailPage({
             {invoices.map((i) => {
               const remaining =
                 Number(i.total ?? 0) - Number(i.amount_paid ?? 0);
+              const draws = drawsByInvoice.get(i.id) ?? [];
               return (
                 <li
                   key={i.id}
@@ -458,7 +478,10 @@ export default async function ClientJobDetailPage({
                       </span>
                     )}
                   </div>
-                  {remaining > 0 && i.stripe_payment_link ? (
+
+                  {draws.length > 0 ? (
+                    <PortalDrawSchedule draws={draws} />
+                  ) : remaining > 0 && i.stripe_payment_link ? (
                     <a
                       href={i.stripe_payment_link}
                       target="_blank"

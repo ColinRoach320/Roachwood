@@ -232,6 +232,24 @@ export interface Message {
   created_at: string;
 }
 
+export type InvoiceDrawStatus = "pending" | "sent" | "paid";
+
+export interface InvoiceDraw {
+  id: string;
+  invoice_id: string;
+  position: number;
+  label: string;
+  amount: number;
+  due_date: string | null;
+  status: InvoiceDrawStatus;
+  stripe_payment_link: string | null;
+  stripe_payment_intent_id: string | null;
+  amount_paid: number;
+  paid_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type ChangeOrderStatus = "draft" | "sent" | "approved" | "declined";
 
 export interface ChangeOrder {
@@ -311,6 +329,7 @@ export type Database = {
       documents:     { Row: DocumentRow; Insert: Partial<DocumentRow> & { name: string; storage_path: string }; Update: Partial<DocumentRow> };
       estimates:     { Row: Estimate;    Insert: Partial<Estimate>  & { job_id: string; title: string }; Update: Partial<Estimate> };
       invoices:      { Row: Invoice;     Insert: Partial<Invoice>   & { job_id: string; title: string }; Update: Partial<Invoice> };
+      invoice_draws: { Row: InvoiceDraw; Insert: Partial<InvoiceDraw> & { invoice_id: string; position: number; label: string; amount: number }; Update: Partial<InvoiceDraw> };
       expenses:      { Row: Expense;     Insert: Partial<Expense>   & { job_id: string; amount: number }; Update: Partial<Expense> };
       testimonials:  { Row: Testimonial; Insert: Partial<Testimonial> & { client_name: string; quote: string }; Update: Partial<Testimonial> };
       gallery_photos: { Row: GalleryItem; Insert: Partial<GalleryItem> & { title: string; storage_path: string }; Update: Partial<GalleryItem> };

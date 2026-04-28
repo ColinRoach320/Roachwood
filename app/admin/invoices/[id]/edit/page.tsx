@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/Card";
 import { InvoiceForm } from "@/components/admin/InvoiceForm";
 import { createClient } from "@/lib/supabase/server";
 import { updateInvoiceRecord } from "../../actions";
-import type { Invoice, Job, Client } from "@/lib/types";
+import type { Invoice, Job, Client, InvoiceDraw } from "@/lib/types";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -50,6 +50,13 @@ export default async function EditInvoicePage({ params }: PageProps) {
     }),
   );
 
+  const { data: drawsRows } = await supabase
+    .from("invoice_draws")
+    .select("*")
+    .eq("invoice_id", id)
+    .order("position", { ascending: true });
+  const existingDraws = (drawsRows ?? []) as InvoiceDraw[];
+
   const action = updateInvoiceRecord.bind(null, id);
 
   return (
@@ -62,6 +69,7 @@ export default async function EditInvoicePage({ params }: PageProps) {
       <Card>
         <InvoiceForm
           invoice={invoice}
+          existingDraws={existingDraws}
           jobs={jobOptions}
           action={action}
           cancelHref={`/admin/invoices/${id}`}

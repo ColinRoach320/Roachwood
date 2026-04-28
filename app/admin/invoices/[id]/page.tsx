@@ -13,9 +13,10 @@ import { InvoiceStatusBadge } from "@/components/ui/Badge";
 import { RecordPaymentForm } from "@/components/admin/RecordPaymentForm";
 import { PaymentLinkButton } from "@/components/admin/PaymentLinkButton";
 import { EmailDocumentForm } from "@/components/admin/EmailDocumentForm";
+import { DrawRowActions } from "@/components/admin/DrawRowActions";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/utils";
-import type { Invoice, Job, Client, LineItem } from "@/lib/types";
+import type { Invoice, Job, Client, LineItem, InvoiceDraw } from "@/lib/types";
 import { setInvoiceStatus, recordInvoicePayment } from "../actions";
 import { sendInvoiceEmail } from "../email-actions";
 
@@ -58,6 +59,15 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
   );
   const paymentAction = recordInvoicePayment.bind(null, id);
   const emailAction = sendInvoiceEmail.bind(null, id);
+
+  const { data: drawsRows } = await supabase
+    .from("invoice_draws")
+    .select("*")
+    .eq("invoice_id", id)
+    .order("position", { ascending: true });
+  const draws = (drawsRows ?? []) as InvoiceDraw[];
+  const hasDraws = draws.length > 0;
+  const drawsTotal = draws.reduce((s, d) => s + Number(d.amount ?? 0), 0);
 
   const defaultSubject = `Invoice from Roachwood — ${job?.title ?? invoice.title}`;
   const dueLabel = invoice.due_date
@@ -159,7 +169,65 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
         <Stat label="Remaining" value={formatMoney(remaining)} />
       </div>
 
-      {remaining > 0 ? (
+      {hasDraws ? (
+        <Card className="p-0 overflow-hidden">
+          <CardHeader className="px-6 pt-6">
+            <div>
+              <CardTitle>Payment schedule</CardTitle>
+              <CardDescription>
+                {draws.length} draw{draws.length === 1 ? "" : "s"} ·{" "}
+                {formatMoney(drawsTotal)} total
+                {Math.abs(drawsTotal - Number(invoice.total ?? 0)) >= 0.01
+                  ? ` (invoice total ${formatMoney(invoice.total)})`
+                  : ""}
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <table className="w-full text-sm">
+            <thead className="bg-charcoal-900/60 border-y border-charcoal-700">
+              <tr className="text-left text-[10px] uppercase tracking-[0.18em] text-charcoal-400">
+                <th className="px-6 py-3 font-medium">Draw</th>
+                <th className="px-6 py-3 font-medium">Status</th>
+                <th className="px-6 py-3 font-medium">Due</th>
+                <th className="px-6 py-3 font-medium text-right">Amount</th>
+                <th className="px-6 py-3 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-charcoal-700">
+              {draws.map((d) => (
+                <tr key={d.id} className="hover:bg-charcoal-700/30">
+                  <td className="px-6 py-3">
+                    <p className="text-charcoal-100">{d.label}</p>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-charcoal-500">
+                      Draw {d.position}
+                    </p>
+                  </td>
+                  <td className="px-6 py-3">
+                    <DrawStatusBadge status={d.status} />
+                  </td>
+                  <td className="px-6 py-3 text-charcoal-300">
+                    {d.due_date ? formatDate(d.due_date) : "—"}
+                  </td>
+                  <td className="px-6 py-3 text-right text-charcoal-100 tabular-nums">
+                    {formatMoney(d.amount)}
+                  </td>
+                  <td className="px-6 py-3 text-right">
+                    <div className="flex justify-end">
+                      <DrawRowActions
+                        drawId={d.id}
+                        status={d.status}
+                        existingLink={d.stripe_payment_link}
+                      />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      ) : null}
+
+      {!hasDraws && remaining > 0 ? (
         <>
           <Card>
             <CardHeader>
@@ -284,6 +352,22 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
         </Card>
       ) : null}
     </div>
+  );
+}
+
+function DrawStatusBadge({ status }: { status: "pending" | "sent" | "paid" }) {
+  const styles =
+    status === "paid"
+      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+      : status === "sent"
+        ? "border-sky-500/40 bg-sky-500/10 text-sky-300"
+        : "border-charcoal-600 text-charcoal-300";
+  return (
+    <span
+      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] ${styles}`}
+    >
+      {status}
+    </span>
   );
 }
 
