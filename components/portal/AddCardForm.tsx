@@ -4,8 +4,8 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { loadStripe, type Stripe as StripeJs } from "@stripe/stripe-js";
 import {
+  CardElement,
   Elements,
-  PaymentElement,
   useElements,
   useStripe,
 } from "@stripe/react-stripe-js";
@@ -72,9 +72,7 @@ export function AddCardForm({ publishableKey }: Props) {
   return (
     <div className="rw-card w-full p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h3 className="font-display text-lg text-charcoal-50">
-          Add a card
-        </h3>
+        <h3 className="font-display text-lg text-charcoal-50">Add a card</h3>
         <button
           type="button"
           onClick={() => setOpen(false)}
@@ -90,53 +88,62 @@ export function AddCardForm({ publishableKey }: Props) {
           <Loader2 className="h-4 w-4 animate-spin" /> Securing connection…
         </div>
       ) : (
-        <Elements
-          stripe={getStripe(publishableKey)}
-          options={{
-            clientSecret,
-            appearance: {
-              theme: "night",
-              variables: {
-                colorPrimary: "#cda85c",
-                colorBackground: "#1f1d1a",
-                colorText: "#f3efe6",
-                colorDanger: "#fb7185",
-                fontFamily: "ui-sans-serif, system-ui, sans-serif",
-                borderRadius: "6px",
-              },
-            },
-          }}
-        >
-          <SetupForm onClose={() => setOpen(false)} />
+        // We pass `stripe` only (no clientSecret) to Elements so we can
+        // use the simpler legacy CardElement instead of PaymentElement.
+        // confirmCardSetup handles the clientSecret directly.
+        <Elements stripe={getStripe(publishableKey)}>
+          <CardSetupForm
+            clientSecret={clientSecret}
+            onClose={() => setOpen(false)}
+          />
         </Elements>
       )}
     </div>
   );
 }
 
-function SetupForm({ onClose }: { onClose: () => void }) {
+function CardSetupForm({
+  clientSecret,
+  onClose,
+}: {
+  clientSecret: string;
+  onClose: () => void;
+}) {
   const stripe = useStripe();
   const elements = useElements();
   const router = useRouter();
   const toast = useToast();
   const [submitting, setSubmitting] = React.useState(false);
+  const [complete, setComplete] = React.useState(false);
+  const [focused, setFocused] = React.useState(false);
+  const [fieldError, setFieldError] = React.useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!stripe || !elements) return;
-    setSubmitting(true);
+    const card = elements.getElement(CardElement);
+    if (!card) {
+      toast.error("Card field hasn't loaded yet — try again in a moment.");
+      return;
+    }
 
-    const { error } = await stripe.confirmSetup({
-      elements,
-      confirmParams: {
-        // No redirect needed — we stay on /portal/payments and refresh.
-        return_url: `${window.location.origin}/portal/payments`,
-      },
-      redirect: "if_required",
-    });
+    setSubmitting(true);
+    const { error, setupIntent } = await stripe.confirmCardSetup(
+      clientSecret,
+      { payment_method: { card } },
+    );
 
     if (error) {
-      toast.error(error.message ?? "Could not save card.");
+      const msg = error.message ?? "Could not save card.";
+      setFieldError(msg);
+      toast.error(msg);
+      setSubmitting(false);
+      return;
+    }
+    if (setupIntent?.status !== "succeeded") {
+      const msg = `Card setup ${setupIntent?.status ?? "failed"}.`;
+      setFieldError(msg);
+      toast.error(msg);
       setSubmitting(false);
       return;
     }
@@ -148,7 +155,58 @@ function SetupForm({ onClose }: { onClose: () => void }) {
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <PaymentElement options={{ layout: "tabs" }} />
+      <div>
+        <label
+          htmlFor="card-element"
+          className="mb-1.5 block text-xs font-medium uppercase tracking-[0.18em] text-charcoal-300"
+        >
+          Card details
+        </label>
+        <div
+          id="card-element"
+          className={`rounded-md border bg-charcoal-900 px-3 py-3 transition ${
+            fieldError
+              ? "border-red-500/60"
+              : focused
+                ? "border-gold-500/60 ring-2 ring-gold-500/30"
+                : "border-charcoal-600"
+          }`}
+        >
+          <CardElement
+            options={{
+              hidePostalCode: false,
+              style: {
+                base: {
+                  fontSize: "15px",
+                  color: "#f3efe6",
+                  fontFamily:
+                    "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
+                  "::placeholder": { color: "#6f6e6a" },
+                  iconColor: "#cda85c",
+                },
+                invalid: {
+                  color: "#fca5a5",
+                  iconColor: "#fca5a5",
+                },
+              },
+            }}
+            onChange={(ev) => {
+              setComplete(ev.complete);
+              setFieldError(ev.error?.message ?? null);
+            }}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+          />
+        </div>
+        {fieldError ? (
+          <p className="mt-1.5 text-xs text-red-300">{fieldError}</p>
+        ) : (
+          <p className="mt-1.5 text-xs text-charcoal-500">
+            Card number, expiry, CVC, and ZIP — Stripe stores these, not us.
+          </p>
+        )}
+      </div>
+
       <div className="flex flex-col-reverse gap-3 border-t border-charcoal-700 pt-4 sm:flex-row sm:items-center sm:justify-end">
         <Button
           type="button"
@@ -163,7 +221,7 @@ function SetupForm({ onClose }: { onClose: () => void }) {
           type="submit"
           size="lg"
           className="w-full justify-center sm:w-auto"
-          disabled={!stripe || submitting}
+          disabled={!stripe || !complete || submitting}
         >
           {submitting ? (
             <>
