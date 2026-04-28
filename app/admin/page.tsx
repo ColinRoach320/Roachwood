@@ -24,6 +24,7 @@ export default async function AdminDashboardPage() {
     jobsRes,
     pendingApprovalsRes,
     pendingEstimatesRes,
+    inFlightEstimatesRes,
     unpaidInvoicesRes,
     recentUpdatesRes,
   ] = await Promise.all([
@@ -41,6 +42,13 @@ export default async function AdminDashboardPage() {
       .select("id, title, job_id, total, status, created_at")
       .eq("status", "sent")
       .order("created_at", { ascending: false }),
+    // Stat-card count: every bid that's still in flight (draft or sent —
+    // not won/lost/no_response). Separate from the "awaiting client"
+    // action card above which is sent-only.
+    supabase
+      .from("estimates")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["draft", "sent"]),
     supabase
       .from("invoices")
       .select("id, title, job_id, total, amount_paid, status, due_date")
@@ -56,6 +64,7 @@ export default async function AdminDashboardPage() {
   const jobs = (jobsRes.data ?? []) as Job[];
   const pendingApprovals = (pendingApprovalsRes.data ?? []) as Approval[];
   const pendingEstimates = (pendingEstimatesRes.data ?? []) as Estimate[];
+  const inFlightEstimateCount = inFlightEstimatesRes.count ?? 0;
   const unpaidInvoices = (unpaidInvoicesRes.data ?? []) as Invoice[];
   const recentUpdates = (recentUpdatesRes.data ?? []) as JobUpdate[];
 
@@ -104,12 +113,26 @@ export default async function AdminDashboardPage() {
           <p className="mt-1 text-sm text-charcoal-400">Scottsdale, AZ</p>
         </div>
         <div className="flex flex-wrap gap-3 text-sm text-charcoal-300">
-          <Stat label="Active jobs" value={activeJobs.length.toString()} />
-          <Stat label="Pipeline" value={formatCurrency(pipelineValue)} />
+          <Stat
+            label="Active jobs"
+            value={activeJobs.length.toString()}
+            href="/admin/jobs?status=active"
+          />
+          <Stat
+            label="Pipeline"
+            value={formatCurrency(pipelineValue)}
+            href="/admin/jobs?status=lead"
+          />
+          <Stat
+            label="Pending estimates"
+            value={inFlightEstimateCount.toString()}
+            href="/admin/estimates?status=sent"
+          />
           <Stat
             label="Outstanding"
             value={formatCurrency(outstandingDollars)}
             tone={outstandingDollars > 0 ? "red" : "neutral"}
+            href="/admin/invoices?status=sent"
           />
         </div>
       </div>
@@ -290,13 +313,27 @@ function Stat({
   label,
   value,
   tone = "neutral",
+  href,
 }: {
   label: string;
   value: string;
   tone?: "neutral" | "red";
+  href?: string;
 }) {
-  return (
-    <div className="rounded-md border border-charcoal-700 bg-charcoal-800 px-4 py-2">
+  const base =
+    "block rounded-md border px-4 py-2 transition focus:outline-none focus:ring-2 focus:ring-gold-500/40";
+  const idle =
+    tone === "red"
+      ? "border-red-500/40 bg-red-500/10"
+      : "border-charcoal-700 bg-charcoal-800";
+  const hover = href
+    ? tone === "red"
+      ? "cursor-pointer hover:border-red-400/70 hover:bg-red-500/15"
+      : "cursor-pointer hover:border-gold-500/50 hover:bg-charcoal-700"
+    : "";
+
+  const inner = (
+    <>
       <p className="text-[10px] uppercase tracking-[0.18em] text-charcoal-400">
         {label}
       </p>
@@ -309,8 +346,17 @@ function Stat({
       >
         {value}
       </p>
-    </div>
+    </>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className={`${base} ${idle} ${hover}`}>
+        {inner}
+      </Link>
+    );
+  }
+  return <div className={`${base} ${idle}`}>{inner}</div>;
 }
 
 function ActionCard({
