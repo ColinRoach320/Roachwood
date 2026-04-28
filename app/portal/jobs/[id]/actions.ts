@@ -1,7 +1,49 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient, createClient } from "@/lib/supabase/server";
+
+/**
+ * Client decision on an estimate from the portal. Mirrors
+ * decideChangeOrder. Status mapping:
+ *   approved → "won"   (cascades job → "active")
+ *   declined → "lost"
+ *
+ * The estimate update runs under the client's session via the new
+ * `estimates client decide` RLS policy. The job-status cascade then
+ * runs with service role since clients can't update jobs directly.
+ */
+export async function decideEstimate(formData: FormData) {
+  const estimateId = String(formData.get("estimate_id") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+  const jobId = String(formData.get("job_id") ?? "");
+
+  if (decision !== "approved" && decision !== "declined") return;
+  const nextStatus = decision === "approved" ? "won" : "lost";
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { error } = await supabase
+    .from("estimates")
+    .update({ status: nextStatus } as never)
+    .eq("id", estimateId);
+  if (error) return;
+
+  if (nextStatus === "won") {
+    // Service-role flip on jobs since clients don't have UPDATE on
+    // jobs. Same cascade the admin setEstimateStatus uses.
+    const admin = createAdminClient();
+    await admin.from("jobs").update({ status: "active" } as never).eq("id", jobId);
+  }
+
+  revalidatePath(`/portal/jobs/${jobId}`);
+  revalidatePath("/portal");
+  revalidatePath("/portal/approvals");
+}
 
 export async function decideChangeOrder(formData: FormData) {
   const changeOrderId = String(formData.get("change_order_id") ?? "");

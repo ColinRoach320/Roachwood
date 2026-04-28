@@ -4,7 +4,7 @@
  * stabilizes.
  */
 
-export type Role = "admin" | "client";
+export type Role = "admin" | "super_admin" | "staff" | "client";
 
 export type JobStatus =
   | "lead"
@@ -24,6 +24,7 @@ export interface Profile {
   full_name: string | null;
   email: string | null;
   phone: string | null;
+  stripe_customer_id: string | null;
   created_at: string;
 }
 

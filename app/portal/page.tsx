@@ -7,6 +7,21 @@ import type { Job, Approval } from "@/lib/types";
 
 export default async function ClientHomePage() {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: profile } = user
+    ? await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", user.id)
+        .single<{ full_name: string | null; email: string | null }>()
+    : { data: null };
+  const firstName =
+    profile?.full_name?.split(" ")[0]?.trim() ||
+    profile?.email?.split("@")[0] ||
+    "there";
 
   const [jobsRes, approvalsRes] = await Promise.all([
     supabase.from("jobs").select("*").order("created_at", { ascending: false }),
@@ -20,7 +35,7 @@ export default async function ClientHomePage() {
     <div className="space-y-10">
       <div>
         <p className="rw-eyebrow">Welcome</p>
-        <h1 className="rw-display mt-2 text-3xl">Your projects</h1>
+        <h1 className="rw-display mt-2 text-3xl">Welcome back, {firstName}</h1>
         <p className="mt-2 text-sm text-charcoal-400 max-w-xl">
           Track progress, review approvals, and download documents for every
           project we&apos;re running together.

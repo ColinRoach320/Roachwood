@@ -14,6 +14,7 @@ import {
   FileCheck2,
   HardHat,
   ShieldCheck,
+  CreditCard,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,7 @@ const PORTAL_ITEMS: NavItem[] = [
   { href: "/portal/jobs", label: "Projects", icon: Hammer },
   { href: "/portal/approvals", label: "Approvals", icon: FileCheck2 },
   { href: "/portal/documents", label: "Documents", icon: FileText },
+  { href: "/portal/payments", label: "Payments", icon: CreditCard },
 ];
 
 const EYEBROW: Record<Scope, string> = {
@@ -54,13 +56,22 @@ const EYEBROW: Record<Scope, string> = {
   portal: "Your projects",
 };
 
+/** Counts shown as red dots/numbers on portal nav items. */
+export interface NavBadges {
+  approvals?: number;
+  payments?: number;
+  projects?: number;
+}
+
 interface Props {
   scope: Scope;
   /** Profile role — drives super-admin-only items like Team. */
   role?: string;
+  /** Optional unread/action counts per route for the badge dots. */
+  badges?: NavBadges;
 }
 
-export function Sidebar({ scope, role }: Props) {
+export function Sidebar({ scope, role, badges }: Props) {
   const pathname = usePathname();
   const items: NavItem[] =
     scope === "admin"
@@ -83,6 +94,7 @@ export function Sidebar({ scope, role }: Props) {
           (item.href !== "/admin" &&
             item.href !== "/portal" &&
             pathname.startsWith(item.href));
+        const count = badgeCountFor(item.href, badges);
         return (
           <Link
             key={item.href}
@@ -103,10 +115,23 @@ export function Sidebar({ scope, role }: Props) {
               )}
               strokeWidth={1.6}
             />
-            <span className="tracking-wide">{item.label}</span>
+            <span className="tracking-wide flex-1">{item.label}</span>
+            {count > 0 ? (
+              <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">
+                {count > 99 ? "99+" : count}
+              </span>
+            ) : null}
           </Link>
         );
       })}
     </nav>
   );
+}
+
+function badgeCountFor(href: string, badges?: NavBadges): number {
+  if (!badges) return 0;
+  if (href === "/portal/approvals") return badges.approvals ?? 0;
+  if (href === "/portal/payments") return badges.payments ?? 0;
+  if (href === "/portal/jobs") return badges.projects ?? 0;
+  return 0;
 }

@@ -10,7 +10,7 @@ import {
   Globe,
   FileCheck2,
   FileText,
-  MessageSquare,
+  CreditCard,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,13 +39,20 @@ const ITEMS: Record<Scope, NavItem[]> = {
     { href: "/portal", label: "Home", icon: LayoutDashboard },
     { href: "/portal/jobs", label: "Projects", icon: Hammer },
     { href: "/portal/approvals", label: "Approvals", icon: FileCheck2 },
-    { href: "/portal/messages", label: "Messages", icon: MessageSquare },
+    { href: "/portal/payments", label: "Pay", icon: CreditCard },
     { href: "/portal/documents", label: "Files", icon: FileText },
   ],
 };
 
+export interface BottomNavBadges {
+  approvals?: number;
+  payments?: number;
+  projects?: number;
+}
+
 interface Props {
   scope: Scope;
+  badges?: BottomNavBadges;
 }
 
 /**
@@ -53,9 +60,17 @@ interface Props {
  * one-handed use on a phone in the field — 56px+ tap targets, no
  * overflow scroll, max five items so labels stay readable in sunlight.
  */
-export function BottomNav({ scope }: Props) {
+export function BottomNav({ scope, badges }: Props) {
   const pathname = usePathname();
   const items = ITEMS[scope];
+
+  function badgeCountFor(href: string): number {
+    if (!badges) return 0;
+    if (href === "/portal/approvals") return badges.approvals ?? 0;
+    if (href === "/portal/payments") return badges.payments ?? 0;
+    if (href === "/portal/jobs") return badges.projects ?? 0;
+    return 0;
+  }
 
   return (
     <nav
@@ -70,24 +85,32 @@ export function BottomNav({ scope }: Props) {
             (item.href !== "/admin" &&
               item.href !== "/portal" &&
               pathname.startsWith(item.href));
+          const count = badgeCountFor(item.href);
           return (
             <li key={item.href}>
               <Link
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 px-2 py-2.5 text-[10px] font-medium uppercase tracking-[0.12em] transition",
+                  "relative flex flex-col items-center justify-center gap-1 px-2 py-2.5 text-[10px] font-medium uppercase tracking-[0.12em] transition",
                   active
                     ? "text-gold-400"
                     : "text-charcoal-400 hover:text-charcoal-100",
                 )}
               >
-                <item.icon
-                  className={cn(
-                    "h-5 w-5",
-                    active ? "text-gold-400" : "text-charcoal-400",
-                  )}
-                  strokeWidth={1.6}
-                />
+                <span className="relative">
+                  <item.icon
+                    className={cn(
+                      "h-5 w-5",
+                      active ? "text-gold-400" : "text-charcoal-400",
+                    )}
+                    strokeWidth={1.6}
+                  />
+                  {count > 0 ? (
+                    <span className="absolute -right-2 -top-1.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-semibold text-white">
+                      {count > 9 ? "9+" : count}
+                    </span>
+                  ) : null}
+                </span>
                 <span className="truncate">{item.label}</span>
               </Link>
             </li>
