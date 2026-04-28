@@ -72,11 +72,24 @@ async function resolveClientAndJob(
   //    using the inline contact panel; otherwise we'll derive
   //    client_id from the existing job.
   if (rawClientId === NEW_CLIENT) {
+    // Address arrives as four split fields (street/city/state/zip)
+    // from the new form. Older form versions sent a single
+    // `new_client_address`; honor that as a fallback.
+    const street = get("new_client_street");
+    const city = get("new_client_city");
+    const state = get("new_client_state");
+    const zip = get("new_client_zip");
+    const splitAddress = [street, [city, state].filter(Boolean).join(", "), zip]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    const address = splitAddress || get("new_client_address") || null;
+
     const newClient = {
       contact_name: get("new_client_name"),
       email: get("new_client_email") || null,
       phone: get("new_client_phone") || null,
-      address: get("new_client_address") || null,
+      address,
     };
     const errors: Record<string, string> = {};
     if (!newClient.contact_name) {
@@ -177,10 +190,10 @@ export async function createEstimateRecord(
 ): Promise<ActionState> {
   const input = readEstimateForm(formData);
 
-  // Validate the always-required fields first so an empty title
-  // doesn't get masked by a project_id error during the cascade.
+  // Validate line items first; title is now derived from the project
+  // name when blank (the form on /admin/estimates/new doesn't surface
+  // a separate title input — the project name doubles as the title).
   const fieldErrors: Record<string, string> = {};
-  if (!input.title) fieldErrors.title = "Title is required.";
   if (input.line_items.length === 0) {
     fieldErrors.line_items = "Add at least one line.";
   }
@@ -189,18 +202,35 @@ export async function createEstimateRecord(
   }
 
   const supabase = await createClient();
+  const newJobTitleHint =
+    typeof formData.get("new_job_title") === "string"
+      ? String(formData.get("new_job_title")).trim()
+      : "";
   const resolved = await resolveClientAndJob(
     formData,
-    input.title,
+    input.title || newJobTitleHint || "Estimate",
     input.client_id,
     input.job_id,
     supabase,
   );
   if (!resolved.ok) return fail(resolved.error, resolved.fieldErrors);
 
+  // Derive the final estimate title. Order: explicit title from form
+  // (edit screen) → new_job_title (cascade) → resolved job's title.
+  let finalTitle = input.title;
+  if (!finalTitle) finalTitle = newJobTitleHint;
+  if (!finalTitle) {
+    const { data: job } = await supabase
+      .from("jobs")
+      .select("title")
+      .eq("id", resolved.job_id)
+      .maybeSingle<{ title: string }>();
+    finalTitle = job?.title ?? "Estimate";
+  }
+
   const insertPayload = {
     job_id: resolved.job_id,
-    title: input.title,
+    title: finalTitle,
     notes: input.notes,
     status: input.status,
     tax_rate: input.tax_rate,
@@ -243,7 +273,6 @@ export async function updateEstimateRecord(
   const input = readEstimateForm(formData);
   const fieldErrors: Record<string, string> = {};
   if (!input.job_id) fieldErrors.job_id = "Pick a project.";
-  if (!input.title) fieldErrors.title = "Title is required.";
   if (input.line_items.length === 0) {
     fieldErrors.line_items = "Add at least one line.";
   }
@@ -252,9 +281,20 @@ export async function updateEstimateRecord(
   }
 
   const supabase = await createClient();
+  // Same fallback as create: blank description → use project name.
+  let finalTitle = input.title;
+  if (!finalTitle) {
+    const { data: job } = await supabase
+      .from("jobs")
+      .select("title")
+      .eq("id", input.job_id)
+      .maybeSingle<{ title: string }>();
+    finalTitle = job?.title ?? "Estimate";
+  }
+
   const updatePayload = {
     job_id: input.job_id,
-    title: input.title,
+    title: finalTitle,
     notes: input.notes,
     status: input.status,
     tax_rate: input.tax_rate,

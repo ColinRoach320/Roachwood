@@ -45,6 +45,62 @@ const inputClass =
 const NEW_CLIENT = "__new_client__";
 const NEW_JOB = "__new_job__";
 
+// US states + DC. AZ is pre-selected because that's where ~90% of work
+// happens; Colin can change it for the occasional out-of-state job.
+const US_STATES: { value: string; label: string }[] = [
+  { value: "AL", label: "Alabama" },
+  { value: "AK", label: "Alaska" },
+  { value: "AZ", label: "Arizona" },
+  { value: "AR", label: "Arkansas" },
+  { value: "CA", label: "California" },
+  { value: "CO", label: "Colorado" },
+  { value: "CT", label: "Connecticut" },
+  { value: "DE", label: "Delaware" },
+  { value: "DC", label: "District of Columbia" },
+  { value: "FL", label: "Florida" },
+  { value: "GA", label: "Georgia" },
+  { value: "HI", label: "Hawaii" },
+  { value: "ID", label: "Idaho" },
+  { value: "IL", label: "Illinois" },
+  { value: "IN", label: "Indiana" },
+  { value: "IA", label: "Iowa" },
+  { value: "KS", label: "Kansas" },
+  { value: "KY", label: "Kentucky" },
+  { value: "LA", label: "Louisiana" },
+  { value: "ME", label: "Maine" },
+  { value: "MD", label: "Maryland" },
+  { value: "MA", label: "Massachusetts" },
+  { value: "MI", label: "Michigan" },
+  { value: "MN", label: "Minnesota" },
+  { value: "MS", label: "Mississippi" },
+  { value: "MO", label: "Missouri" },
+  { value: "MT", label: "Montana" },
+  { value: "NE", label: "Nebraska" },
+  { value: "NV", label: "Nevada" },
+  { value: "NH", label: "New Hampshire" },
+  { value: "NJ", label: "New Jersey" },
+  { value: "NM", label: "New Mexico" },
+  { value: "NY", label: "New York" },
+  { value: "NC", label: "North Carolina" },
+  { value: "ND", label: "North Dakota" },
+  { value: "OH", label: "Ohio" },
+  { value: "OK", label: "Oklahoma" },
+  { value: "OR", label: "Oregon" },
+  { value: "PA", label: "Pennsylvania" },
+  { value: "RI", label: "Rhode Island" },
+  { value: "SC", label: "South Carolina" },
+  { value: "SD", label: "South Dakota" },
+  { value: "TN", label: "Tennessee" },
+  { value: "TX", label: "Texas" },
+  { value: "UT", label: "Utah" },
+  { value: "VT", label: "Vermont" },
+  { value: "VA", label: "Virginia" },
+  { value: "WA", label: "Washington" },
+  { value: "WV", label: "West Virginia" },
+  { value: "WI", label: "Wisconsin" },
+  { value: "WY", label: "Wyoming" },
+];
+
 export function EstimateForm({
   estimate,
   jobs,
@@ -87,18 +143,26 @@ export function EstimateForm({
     <FormShell state={state}>
       <form action={formAction} className="space-y-6">
         <div className="grid gap-5 md:grid-cols-2">
-          <div className="md:col-span-2">
-            <Label htmlFor="title">Estimate title *</Label>
-            <Input
-              id="title"
-              name="title"
-              defaultValue={estimate?.title ?? ""}
-              placeholder="Walnut kitchen — initial bid"
-              required
-              autoFocus
-            />
-            <FieldError name="title" />
-          </div>
+          {isEdit ? (
+            <div className="md:col-span-2">
+              <Label htmlFor="title">Estimate description</Label>
+              <Input
+                id="title"
+                name="title"
+                defaultValue={estimate?.title ?? ""}
+                placeholder="e.g. Initial bid, revision after walkthrough"
+              />
+              <FieldError name="title" />
+              <p className="mt-1 text-xs text-charcoal-500">
+                Optional — shows in the estimate list and on the PDF. Defaults
+                to the project name when blank.
+              </p>
+            </div>
+          ) : (
+            // On new, the project name doubles as the estimate title so
+            // Colin only types it once. The action fills it server-side.
+            <input type="hidden" name="title" value="" />
+          )}
 
           {!isEdit ? (
             <>
@@ -175,21 +239,27 @@ export function EstimateForm({
             </div>
           )}
 
-          <div className="md:col-span-2">
-            <Label htmlFor="status">Status</Label>
-            <select
-              id="status"
-              name="status"
-              defaultValue={estimate?.status ?? "draft"}
-              className={inputClass}
-            >
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          {isEdit ? (
+            <div className="md:col-span-2">
+              <Label htmlFor="status">Status</Label>
+              <select
+                id="status"
+                name="status"
+                defaultValue={estimate?.status ?? "draft"}
+                className={inputClass}
+              >
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            // New estimates always start in draft. Status changes happen
+            // from the detail page after save (Mark sent / Won / Lost).
+            <input type="hidden" name="status" value="draft" />
+          )}
 
           {creatingClient && !isEdit ? (
             <div className="md:col-span-2 rounded-lg border border-gold-500/30 bg-gold-500/5 p-5">
@@ -203,7 +273,7 @@ export function EstimateForm({
                   <Input
                     id="new_client_name"
                     name="new_client_name"
-                    placeholder="Jane Homeowner"
+                    placeholder="John Smith"
                     required={creatingClient}
                   />
                   <FieldError name="new_client_name" />
@@ -214,7 +284,7 @@ export function EstimateForm({
                     id="new_client_email"
                     name="new_client_email"
                     type="email"
-                    placeholder="jane@example.com"
+                    placeholder="john@email.com"
                   />
                   <FieldError name="new_client_email" />
                 </div>
@@ -224,16 +294,50 @@ export function EstimateForm({
                     id="new_client_phone"
                     name="new_client_phone"
                     type="tel"
-                    placeholder="(602) 555-0000"
+                    placeholder="(480) 555-0000"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <Label htmlFor="new_client_address">Address</Label>
+                  <Label htmlFor="new_client_street">Street address</Label>
                   <Input
-                    id="new_client_address"
-                    name="new_client_address"
-                    placeholder="Street, city, state"
+                    id="new_client_street"
+                    name="new_client_street"
+                    placeholder="123 Main St"
                   />
+                </div>
+                <div>
+                  <Label htmlFor="new_client_city">City</Label>
+                  <Input
+                    id="new_client_city"
+                    name="new_client_city"
+                    defaultValue="Scottsdale"
+                  />
+                </div>
+                <div className="grid grid-cols-[1fr_1fr] gap-3">
+                  <div>
+                    <Label htmlFor="new_client_state">State</Label>
+                    <select
+                      id="new_client_state"
+                      name="new_client_state"
+                      defaultValue="AZ"
+                      className={inputClass}
+                    >
+                      {US_STATES.map((s) => (
+                        <option key={s.value} value={s.value}>
+                          {s.value}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="new_client_zip">ZIP</Label>
+                    <Input
+                      id="new_client_zip"
+                      name="new_client_zip"
+                      placeholder="85251"
+                      inputMode="numeric"
+                    />
+                  </div>
                 </div>
               </div>
               <p className="mt-3 text-xs text-charcoal-400">
@@ -251,11 +355,12 @@ export function EstimateForm({
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="md:col-span-2">
-                  <Label htmlFor="new_job_title">Project title</Label>
+                  <Label htmlFor="new_job_title">Project name *</Label>
                   <Input
                     id="new_job_title"
                     name="new_job_title"
-                    placeholder="Defaults to the estimate title above"
+                    placeholder="Kitchen remodel, Deck build, Master bath"
+                    required={creatingJob || creatingClient}
                   />
                 </div>
                 <div className="md:col-span-2">
@@ -263,7 +368,7 @@ export function EstimateForm({
                   <Input
                     id="new_job_address"
                     name="new_job_address"
-                    placeholder="Street, city, state"
+                    placeholder="123 Main St"
                   />
                 </div>
               </div>
