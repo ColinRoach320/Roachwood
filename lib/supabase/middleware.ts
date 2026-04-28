@@ -38,6 +38,15 @@ export async function updateSession(request: NextRequest) {
   const needsAuth =
     pathname.startsWith("/admin") || pathname.startsWith("/portal");
 
+  // TEMP DEBUG — see middleware.ts for context.
+  if (pathname.startsWith("/admin")) {
+    console.log("[middleware-debug] admin gate", {
+      pathname,
+      hasUser: !!user,
+      userId: user?.id ?? null,
+    });
+  }
+
   if (needsAuth && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
@@ -46,11 +55,15 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user && pathname.startsWith("/admin")) {
-    const { data: profile } = await supabase
+    const { data: profile, error: profileErr } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single<{ role: string }>();
+    console.log("[middleware-debug] profile lookup", {
+      role: profile?.role ?? null,
+      profileErr: profileErr?.message ?? null,
+    });
     if (profile?.role !== "admin") {
       const url = request.nextUrl.clone();
       url.pathname = "/portal";
