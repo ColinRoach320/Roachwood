@@ -1,9 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Verify the request comes from a signed-in admin. Used by the PDF
- * route handlers — they fetch with the service role, but we still
- * require an admin session so the URLs aren't world-readable.
+ * Verify the request comes from a signed-in admin or super admin.
+ * Used by the PDF route handlers and the email server actions —
+ * they fetch with the service role, but we still require an admin
+ * session so the URLs aren't world-readable.
+ *
+ * Staff are intentionally excluded: emailing invoices / sending PDFs
+ * is a financial action, not a read.
  */
 export async function requireAdmin(): Promise<{ ok: boolean }> {
   const supabase = await createClient();
@@ -17,5 +21,6 @@ export async function requireAdmin(): Promise<{ ok: boolean }> {
     .select("role")
     .eq("id", user.id)
     .single<{ role: string }>();
-  return { ok: profile?.role === "admin" };
+  const role = profile?.role ?? "";
+  return { ok: role === "admin" || role === "super_admin" };
 }

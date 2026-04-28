@@ -27,7 +27,10 @@ export async function signIn(formData: FormData) {
       .select("role")
       .eq("id", user.id)
       .single<{ role: string }>();
-    if (profile?.role === "admin" && !redirectTo) target = "/admin";
+    const role = profile?.role ?? "";
+    const goesToAdmin =
+      role === "admin" || role === "super_admin" || role === "staff";
+    if (goesToAdmin && !redirectTo) target = "/admin";
   }
 
   revalidatePath("/", "layout");
