@@ -8,18 +8,51 @@ type Props = Omit<
   "type" | "value" | "onChange" | "defaultValue"
 > & {
   defaultValue?: number | string | null;
+  /**
+   * Controlled value. When set together with onValueChange, the field
+   * mirrors the prop instead of running its own state — used by
+   * components like DrawsEditor that store amounts in JSON state.
+   */
+  value?: number | string | null;
+  /** Fires with the parsed numeric value (commas stripped). */
+  onValueChange?: (n: number) => void;
 };
 
 /**
  * Number input that formats with thousands separators as the user
- * types ("1500" → "1,500"). Submitted as plain text — `parseNumber()`
- * in `lib/utils.ts` already strips commas before reaching the database,
- * so server actions don't need any changes.
+ * types ("1500" → "1,500"). Two modes:
+ *
+ *   - Uncontrolled (default): seed via `defaultValue`, submit via
+ *     `name`. parseNumber() in lib/utils strips commas server-side.
+ *   - Controlled: pass `value` + `onValueChange`. Display syncs to the
+ *     incoming prop only when the prop's numeric value diverges from
+ *     what the field is currently showing — so trailing dots and
+ *     in-progress decimals don't get clobbered between renders.
  */
-export function MoneyInput({ defaultValue, ...rest }: Props) {
+export function MoneyInput({
+  defaultValue,
+  value,
+  onValueChange,
+  ...rest
+}: Props) {
+  const controlled = value !== undefined && onValueChange !== undefined;
+
   const [display, setDisplay] = React.useState<string>(() =>
-    formatPretty(defaultValue),
+    controlled ? formatPretty(value) : formatPretty(defaultValue),
   );
+
+  React.useEffect(() => {
+    if (!controlled) return;
+    const propNum = Number(value ?? 0);
+    const displayNum = parseToNumber(display);
+    if (
+      Number.isFinite(propNum) &&
+      Math.abs(propNum - displayNum) > 0.001
+    ) {
+      setDisplay(formatPretty(propNum));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
 
   return (
     <Input
@@ -28,9 +61,19 @@ export function MoneyInput({ defaultValue, ...rest }: Props) {
       inputMode="decimal"
       autoComplete="off"
       value={display}
-      onChange={(e) => setDisplay(formatLive(e.target.value))}
+      onChange={(e) => {
+        const next = formatLive(e.target.value);
+        setDisplay(next);
+        if (controlled) onValueChange!(parseToNumber(next));
+      }}
     />
   );
+}
+
+function parseToNumber(s: string): number {
+  if (!s) return 0;
+  const n = Number(s.replace(/,/g, ""));
+  return Number.isFinite(n) ? n : 0;
 }
 
 /**

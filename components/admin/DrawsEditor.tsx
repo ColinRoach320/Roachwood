@@ -4,6 +4,8 @@ import * as React from "react";
 import { Plus, Trash2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { DateField } from "@/components/admin/DateField";
+import { MoneyInput } from "@/components/admin/MoneyInput";
 import { formatMoney, roundMoney } from "@/lib/utils";
 
 export interface DrawDraft {
@@ -148,21 +150,14 @@ export function DrawsEditor({ invoiceTotal, initial }: Props) {
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      step="0.01"
-                      min="0"
+                    <MoneyInput
                       value={d.amount}
-                      onChange={(e) =>
-                        update(idx, { amount: Number(e.target.value || 0) })
-                      }
+                      onValueChange={(n) => update(idx, { amount: n })}
                       className="text-right"
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <Input
-                      type="date"
+                    <DateField
                       value={d.due_date ?? ""}
                       onChange={(e) =>
                         update(idx, { due_date: e.target.value || null })

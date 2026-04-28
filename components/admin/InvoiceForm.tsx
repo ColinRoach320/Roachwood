@@ -9,6 +9,8 @@ import { FormShell, FieldError } from "@/components/admin/FormShell";
 import { SubmitButton } from "@/components/admin/SubmitButton";
 import { LineItemsEditor } from "@/components/admin/LineItemsEditor";
 import { DrawsEditor } from "@/components/admin/DrawsEditor";
+import { DateField } from "@/components/admin/DateField";
+import { MoneyInput } from "@/components/admin/MoneyInput";
 import { initialActionState, type ActionState } from "@/lib/actions";
 import type { Invoice, InvoiceStatus, InvoiceDraw } from "@/lib/types";
 
@@ -141,21 +143,17 @@ export function InvoiceForm({
           </div>
           <div>
             <Label htmlFor="due_date">Due date</Label>
-            <Input
+            <DateField
               id="due_date"
               name="due_date"
-              type="date"
               defaultValue={invoice?.due_date ?? ""}
             />
           </div>
           <div>
             <Label htmlFor="amount_paid">Amount paid (USD)</Label>
-            <Input
+            <MoneyInput
               id="amount_paid"
               name="amount_paid"
-              type="number"
-              step="0.01"
-              min="0"
               defaultValue={invoice?.amount_paid ?? 0}
             />
             <FieldError name="amount_paid" />
