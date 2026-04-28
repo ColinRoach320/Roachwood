@@ -303,70 +303,67 @@ export default async function HomePage() {
       {/* FOUNDER */}
       <section
         id="founder"
-        className="bg-charcoal-900 px-6 md:px-16 py-32 grid md:grid-cols-[380px_1fr] gap-16 lg:gap-24 items-start"
+        className="bg-charcoal-900 px-6 md:px-16 py-32"
       >
-        <div className="relative">
-          <div className="aspect-[3/4] bg-charcoal-700 flex items-center justify-center text-center px-10">
-            <p className="font-display italic text-charcoal-300">
-              Photo of Colin Roach
-              <br />
-              <br />
-              <span className="font-sans not-italic text-[11px] tracking-[0.1em] uppercase text-gold-500/70">
-                [ Replace with portrait ]
-              </span>
-            </p>
-          </div>
+        <div className="relative mx-auto max-w-3xl">
+          {/* Vertical gold accent — replaces the photo as the visual
+              anchor on the left edge. Gradient fades the line out so it
+              feels like a flourish rather than a hard rule. */}
           <span
             aria-hidden
-            className="absolute -bottom-5 -right-5 w-32 h-32 border-2 border-gold-500 -z-10"
+            className="pointer-events-none absolute left-0 top-2 bottom-2 w-px bg-gradient-to-b from-gold-500 via-gold-500/40 to-transparent"
           />
-        </div>
+          <span
+            aria-hidden
+            className="pointer-events-none absolute left-0 top-2 h-12 w-[3px] bg-gold-500"
+          />
 
-        <div>
-          <p className="rw-eyebrow">Founder&rsquo;s Note</p>
-          <h2 className="rw-display mt-3 text-3xl md:text-5xl leading-[1.1] text-charcoal-50">
-            &ldquo;If it&rsquo;s worth doing, it&rsquo;s worth building right.&rdquo;
-          </h2>
-          <p className="mt-10 font-display italic text-xl text-charcoal-200 leading-[1.65]">
-            Roachwood was built on pride, craftsmanship, and family influence.
-          </p>
-          <div className="mt-8 space-y-5 text-[15px] text-charcoal-300 leading-[1.9]">
-            <p>
-              I come from a family of builders, firefighters, and craftsmen
-              who believed in doing things the right way. My father, John
-              Roach, was a builder and Deputy Chief, and Steve Lesniak, a
-              Fire Chief and master carpenter, had a major influence on how
-              I think about work, detail, discipline, and pride in the
-              finished product.
+          <div className="pl-8 md:pl-12">
+            <p className="rw-eyebrow">Founder&rsquo;s Note</p>
+            <h2 className="rw-display mt-3 text-3xl md:text-5xl leading-[1.1] text-charcoal-50">
+              &ldquo;If it&rsquo;s worth doing, it&rsquo;s worth building right.&rdquo;
+            </h2>
+            <p className="mt-10 font-display italic text-xl text-charcoal-200 leading-[1.65]">
+              Roachwood was built on pride, craftsmanship, and family influence.
             </p>
-            <p>
-              While studying chemistry at La Salle University, I worked in a
-              boutique cabinet shop and found something I genuinely loved —
-              building, creating, and seeing a project come to life. After
-              earning my master&rsquo;s degree from George Washington
-              University, I kept coming back to that same work.
-            </p>
-            <p>
-              Today, I focus on what I enjoy most: working with clients,
-              solving problems, and delivering spaces people are proud of —
-              whether it&rsquo;s a kitchen, custom cabinetry, a deck, or a
-              full home update.
-            </p>
-            <p>
-              I live in Scottsdale with my wife and two young kids, and
-              I&rsquo;m active in my community and my faith. That
-              foundation shapes how I work and the standard I hold on every
-              project.
-            </p>
-            <p>I take pride in the work — and I stand behind it.</p>
-          </div>
-          <div className="mt-12 pt-8 border-t border-gold-500/20">
-            <p className="font-display italic text-2xl text-charcoal-50">
-              Colin Roach
-            </p>
-            <p className="mt-1.5 text-[10px] font-medium uppercase tracking-[0.22em] text-gold-500/70">
-              Founder, Roachwood
-            </p>
+            <div className="mt-8 space-y-5 text-[15px] text-charcoal-300 leading-[1.9]">
+              <p>
+                I come from a family of builders, firefighters, and craftsmen
+                who believed in doing things the right way. My father, John
+                Roach, was a builder and Deputy Chief, and Steve Lesniak, a
+                Fire Chief and master carpenter, had a major influence on how
+                I think about work, detail, discipline, and pride in the
+                finished product.
+              </p>
+              <p>
+                While studying chemistry at La Salle University, I worked in a
+                boutique cabinet shop and found something I genuinely loved —
+                building, creating, and seeing a project come to life. After
+                earning my master&rsquo;s degree from George Washington
+                University, I kept coming back to that same work.
+              </p>
+              <p>
+                Today, I focus on what I enjoy most: working with clients,
+                solving problems, and delivering spaces people are proud of —
+                whether it&rsquo;s a kitchen, custom cabinetry, a deck, or a
+                full home update.
+              </p>
+              <p>
+                I live in Scottsdale with my wife and two young kids, and
+                I&rsquo;m active in my community and my faith. That
+                foundation shapes how I work and the standard I hold on every
+                project.
+              </p>
+              <p>I take pride in the work — and I stand behind it.</p>
+            </div>
+            <div className="mt-12 pt-8 border-t border-gold-500/20">
+              <p className="font-display italic text-2xl text-charcoal-50">
+                Colin Roach
+              </p>
+              <p className="mt-1.5 text-[10px] font-medium uppercase tracking-[0.22em] text-gold-500/70">
+                Founder, Roachwood
+              </p>
+            </div>
           </div>
         </div>
       </section>
