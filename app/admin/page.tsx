@@ -27,6 +27,7 @@ export default async function AdminDashboardPage() {
     inFlightEstimatesRes,
     unpaidInvoicesRes,
     recentUpdatesRes,
+    pendingChangeOrdersRes,
   ] = await Promise.all([
     supabase
       .from("jobs")
@@ -59,12 +60,17 @@ export default async function AdminDashboardPage() {
       .select("id, body, job_id, created_at, visible_to_client")
       .order("created_at", { ascending: false })
       .limit(8),
+    supabase
+      .from("change_orders")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["draft", "sent"]),
   ]);
 
   const jobs = (jobsRes.data ?? []) as Job[];
   const pendingApprovals = (pendingApprovalsRes.data ?? []) as Approval[];
   const pendingEstimates = (pendingEstimatesRes.data ?? []) as Estimate[];
   const inFlightEstimateCount = inFlightEstimatesRes.count ?? 0;
+  const pendingChangeOrderCount = pendingChangeOrdersRes.count ?? 0;
   const unpaidInvoices = (unpaidInvoicesRes.data ?? []) as Invoice[];
   const recentUpdates = (recentUpdatesRes.data ?? []) as JobUpdate[];
 
@@ -127,6 +133,12 @@ export default async function AdminDashboardPage() {
             label="Pending estimates"
             value={inFlightEstimateCount.toString()}
             href="/admin/estimates?status=sent"
+          />
+          <Stat
+            label="Pending change orders"
+            value={pendingChangeOrderCount.toString()}
+            tone={pendingChangeOrderCount > 0 ? "red" : "neutral"}
+            href="/admin/jobs"
           />
           <Stat
             label="Outstanding"

@@ -227,6 +227,28 @@ export interface Message {
   created_at: string;
 }
 
+export type ChangeOrderStatus = "draft" | "sent" | "approved" | "declined";
+
+export interface ChangeOrder {
+  id: string;
+  job_id: string;
+  co_number: number;
+  title: string;
+  description: string | null;
+  status: ChangeOrderStatus;
+  line_items: LineItem[];
+  subtotal: number;
+  tax_rate: number;
+  tax_amount: number;
+  total: number;
+  notes: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  declined_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type SubcontractorTrade =
   | "electrical"
   | "plumbing"
@@ -291,6 +313,7 @@ export type Database = {
       messages:       { Row: Message;    Insert: Partial<Message>    & { job_id: string; sender_id: string; body: string }; Update: Partial<Message> };
       social_posts:  { Row: SocialPost;  Insert: Partial<SocialPost>  & { platform: SocialPlatform; caption: string }; Update: Partial<SocialPost> };
       site_settings: { Row: SiteSettings; Insert: Partial<SiteSettings>; Update: Partial<SiteSettings> };
+      change_orders: { Row: ChangeOrder; Insert: Partial<ChangeOrder> & { job_id: string; title: string }; Update: Partial<ChangeOrder> };
       subcontractors: { Row: Subcontractor; Insert: Partial<Subcontractor> & { contact_name: string; trade: SubcontractorTrade }; Update: Partial<Subcontractor> };
       subcontractor_payments: { Row: SubcontractorPayment; Insert: Partial<SubcontractorPayment> & { subcontractor_id: string; amount: number }; Update: Partial<SubcontractorPayment> };
     };

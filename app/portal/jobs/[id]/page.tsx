@@ -18,6 +18,7 @@ import {
   ApprovalStatusBadge,
   EstimateStatusBadge,
   InvoiceStatusBadge,
+  ChangeOrderStatusBadge,
 } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { MessageThread } from "@/components/admin/MessageThread";
@@ -34,8 +35,9 @@ import type {
   DesignIdea,
   Message,
   Profile,
+  ChangeOrder,
 } from "@/lib/types";
-import { decideApproval } from "./actions";
+import { decideApproval, decideChangeOrder } from "./actions";
 import {
   addDesignIdea,
   getDesignIdeaSignedUrl,
@@ -70,6 +72,7 @@ export default async function ClientJobDetailPage({
     documentsRes,
     ideasRes,
     messagesRes,
+    changeOrdersRes,
   ] = await Promise.all([
     supabase
       .from("job_updates")
@@ -106,6 +109,11 @@ export default async function ClientJobDetailPage({
       .select("*")
       .eq("job_id", id)
       .order("created_at", { ascending: true }),
+    supabase
+      .from("change_orders")
+      .select("*")
+      .eq("job_id", id)
+      .order("co_number", { ascending: false }),
   ]);
 
   const updates = (updatesRes.data ?? []) as JobUpdate[];
@@ -117,6 +125,11 @@ export default async function ClientJobDetailPage({
   const files = allDocs.filter((d) => d.kind !== "photo");
   const ideas = (ideasRes.data ?? []) as DesignIdea[];
   const messages = (messagesRes.data ?? []) as Message[];
+  const changeOrders = (changeOrdersRes.data ?? []) as ChangeOrder[];
+  const pendingChangeOrders = changeOrders.filter((c) => c.status === "sent");
+  const decidedChangeOrders = changeOrders.filter(
+    (c) => c.status === "approved" || c.status === "declined",
+  );
 
   // Sign photo URLs server-side (clients can't read the bucket directly).
   const adminClient = createAdminClient();
@@ -254,6 +267,104 @@ export default async function ClientJobDetailPage({
                     </form>
                   </div>
                 ) : null}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+
+      {/* Change orders */}
+      {changeOrders.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <div>
+              <CardTitle>Change orders</CardTitle>
+              <CardDescription>
+                {pendingChangeOrders.length > 0
+                  ? "Scope changes that need your approval before work continues."
+                  : "Scope changes for this project."}
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <ul className="space-y-3">
+            {pendingChangeOrders.map((co) => (
+              <li
+                key={co.id}
+                className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-amber-300">
+                      CO-{co.co_number}
+                    </p>
+                    <p className="mt-1 text-charcoal-50">{co.title}</p>
+                    {co.description ? (
+                      <p className="mt-2 text-sm text-charcoal-300 leading-relaxed">
+                        {co.description}
+                      </p>
+                    ) : null}
+                    <p className="mt-3 font-display text-xl text-charcoal-50 tabular-nums">
+                      {formatMoney(co.total)}
+                    </p>
+                    <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-charcoal-500">
+                      Sent {formatDate(co.created_at)}
+                    </p>
+                  </div>
+                  <ChangeOrderStatusBadge status={co.status} />
+                </div>
+
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <form action={decideChangeOrder} className="flex-1">
+                    <input type="hidden" name="change_order_id" value={co.id} />
+                    <input type="hidden" name="job_id" value={job.id} />
+                    <input type="hidden" name="decision" value="approved" />
+                    <Button
+                      type="submit"
+                      size="md"
+                      className="h-12 w-full bg-emerald-500 text-charcoal-950 hover:bg-emerald-400"
+                    >
+                      Approve
+                    </Button>
+                  </form>
+                  <form action={decideChangeOrder} className="flex-1">
+                    <input type="hidden" name="change_order_id" value={co.id} />
+                    <input type="hidden" name="job_id" value={job.id} />
+                    <input type="hidden" name="decision" value="declined" />
+                    <Button
+                      type="submit"
+                      size="md"
+                      variant="secondary"
+                      className="h-12 w-full"
+                    >
+                      Decline
+                    </Button>
+                  </form>
+                </div>
+              </li>
+            ))}
+
+            {decidedChangeOrders.map((co) => (
+              <li
+                key={co.id}
+                className="rounded-lg border border-charcoal-700 bg-charcoal-900/40 p-4"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-charcoal-500">
+                      CO-{co.co_number} ·{" "}
+                      {co.approved_at
+                        ? `Approved ${formatDate(co.approved_at)}`
+                        : co.declined_at
+                          ? `Declined ${formatDate(co.declined_at)}`
+                          : ""}
+                    </p>
+                    <p className="mt-1 text-charcoal-100">{co.title}</p>
+                    <p className="mt-2 text-charcoal-300 tabular-nums">
+                      {formatMoney(co.total)}
+                    </p>
+                  </div>
+                  <ChangeOrderStatusBadge status={co.status} />
+                </div>
               </li>
             ))}
           </ul>

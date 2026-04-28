@@ -6,6 +6,7 @@ import type {
   EstimateStatus,
   InvoiceStatus,
   ExpenseCategory,
+  ChangeOrderStatus,
 } from "@/lib/types";
 
 type Tone = "neutral" | "gold" | "green" | "amber" | "red" | "blue";
@@ -101,4 +102,19 @@ const expenseCategoryTone: Record<ExpenseCategory, Tone> = {
 
 export function ExpenseCategoryBadge({ category }: { category: ExpenseCategory }) {
   return <Badge tone={expenseCategoryTone[category]}>{category}</Badge>;
+}
+
+const changeOrderStatusTone: Record<ChangeOrderStatus, Tone> = {
+  draft: "neutral",
+  sent: "blue",
+  approved: "green",
+  declined: "red",
+};
+
+export function ChangeOrderStatusBadge({
+  status,
+}: {
+  status: ChangeOrderStatus;
+}) {
+  return <Badge tone={changeOrderStatusTone[status]}>{status}</Badge>;
 }

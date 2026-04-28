@@ -10,6 +10,7 @@ import {
   Camera,
   Lightbulb,
   MessageSquare,
+  GitBranch,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/ButtonLink";
@@ -18,6 +19,7 @@ import {
   EstimateStatusBadge,
   InvoiceStatusBadge,
   ExpenseCategoryBadge,
+  ChangeOrderStatusBadge,
 } from "@/components/ui/Badge";
 import { JobUpdateForm } from "@/components/admin/JobUpdateForm";
 import { PhotoUploadButton } from "@/components/admin/PhotoUploadButton";
@@ -41,6 +43,7 @@ import type {
   DesignIdea,
   Message,
   Profile,
+  ChangeOrder,
 } from "@/lib/types";
 
 interface PageProps {
@@ -72,6 +75,7 @@ export default async function JobDetailPage({ params }: PageProps) {
     { data: documents },
     { data: designIdeas },
     { data: messages },
+    { data: changeOrders },
   ] = await Promise.all([
     supabase
       .from("clients")
@@ -113,7 +117,17 @@ export default async function JobDetailPage({ params }: PageProps) {
       .select("*")
       .eq("job_id", id)
       .order("created_at", { ascending: true }),
+    supabase
+      .from("change_orders")
+      .select("id, co_number, title, status, total, created_at")
+      .eq("job_id", id)
+      .order("co_number", { ascending: false }),
   ]);
+
+  const allChangeOrders = (changeOrders ?? []) as Pick<
+    ChangeOrder,
+    "id" | "co_number" | "title" | "status" | "total" | "created_at"
+  >[];
 
   // Split documents into photos vs files using the new kind column.
   const allDocs = (documents ?? []) as DocumentRow[];
@@ -238,6 +252,13 @@ export default async function JobDetailPage({ params }: PageProps) {
       </div>
 
       <div className="flex flex-wrap items-stretch gap-2 sm:items-center">
+        <ButtonLink
+          href={`/admin/change-orders/new?job_id=${id}`}
+          size="lg"
+          className="w-full justify-center sm:w-auto"
+        >
+          <GitBranch className="h-4 w-4" /> New change order
+        </ButtonLink>
         <EmailDocumentForm
           action={completeEmailAction}
           documentLabel="job complete + review"
@@ -359,6 +380,74 @@ export default async function JobDetailPage({ params }: PageProps) {
                   <td className="px-6 py-3"><EstimateStatusBadge status={e.status} /></td>
                   <td className="px-6 py-3 text-charcoal-300">{formatDate(e.created_at)}</td>
                   <td className="px-6 py-3 text-right text-charcoal-200">{formatMoney(e.total)}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </Card>
+
+      {/* Change orders */}
+      <Card className="p-0 overflow-hidden">
+        <CardHeader className="px-6 pt-6">
+          <div>
+            <CardTitle>
+              <span className="inline-flex items-center gap-2">
+                <GitBranch className="h-5 w-5 text-gold-400" />
+                Change orders
+              </span>
+            </CardTitle>
+            <CardDescription>
+              {allChangeOrders.length} on this job
+              {allChangeOrders.some((c) => c.status === "approved")
+                ? " — approved totals roll into the job's estimated value automatically."
+                : "."}
+            </CardDescription>
+          </div>
+          <ButtonLink href={`/admin/change-orders/new?job_id=${id}`} size="sm">
+            <Plus className="h-4 w-4" /> New change order
+          </ButtonLink>
+        </CardHeader>
+        <table className="w-full text-sm">
+          <thead className="bg-charcoal-900/60 border-y border-charcoal-700">
+            <tr className="text-left text-[10px] uppercase tracking-[0.18em] text-charcoal-400">
+              <th className="px-6 py-3 font-medium">No.</th>
+              <th className="px-6 py-3 font-medium">Title</th>
+              <th className="px-6 py-3 font-medium">Status</th>
+              <th className="px-6 py-3 font-medium">Created</th>
+              <th className="px-6 py-3 font-medium text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-charcoal-700">
+            {allChangeOrders.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-6 py-8 text-center text-charcoal-400">
+                  No change orders yet.
+                </td>
+              </tr>
+            ) : (
+              allChangeOrders.map((co) => (
+                <tr key={co.id} className="hover:bg-charcoal-700/30">
+                  <td className="px-6 py-3 text-charcoal-300 tabular-nums">
+                    CO-{co.co_number}
+                  </td>
+                  <td className="px-6 py-3">
+                    <Link
+                      href={`/admin/change-orders/${co.id}`}
+                      className="text-charcoal-100 hover:text-gold-400"
+                    >
+                      {co.title}
+                    </Link>
+                  </td>
+                  <td className="px-6 py-3">
+                    <ChangeOrderStatusBadge status={co.status} />
+                  </td>
+                  <td className="px-6 py-3 text-charcoal-300">
+                    {formatDate(co.created_at)}
+                  </td>
+                  <td className="px-6 py-3 text-right text-charcoal-200">
+                    {formatMoney(co.total)}
+                  </td>
                 </tr>
               ))
             )}
