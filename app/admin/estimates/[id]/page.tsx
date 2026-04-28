@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Pencil, ArrowRight, FileDown } from "lucide-react";
+import { Pencil, ArrowRight, Printer } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -10,10 +10,12 @@ import {
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Button } from "@/components/ui/Button";
 import { EstimateStatusBadge } from "@/components/ui/Badge";
+import { EmailDocumentForm } from "@/components/admin/EmailDocumentForm";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/utils";
 import type { Estimate, Job, Client, LineItem } from "@/lib/types";
 import { setEstimateStatus } from "../actions";
+import { sendEstimateEmail } from "../email-actions";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -40,12 +42,17 @@ export default async function EstimateDetailPage({ params }: PageProps) {
   const { data: client } = job
     ? await supabase
         .from("clients")
-        .select("id, contact_name, company_name")
+        .select("id, contact_name, company_name, email")
         .eq("id", job.client_id)
-        .maybeSingle<Pick<Client, "id" | "contact_name" | "company_name">>()
+        .maybeSingle<
+          Pick<Client, "id" | "contact_name" | "company_name" | "email">
+        >()
     : { data: null };
 
   const items = (estimate.line_items ?? []) as LineItem[];
+  const emailAction = sendEstimateEmail.bind(null, id);
+  const defaultSubject = `Estimate from Roachwood — ${job?.title ?? estimate.title}`;
+  const defaultMessage = `Hi ${client?.contact_name ?? "there"},\n\nPlease find attached the estimate for ${job?.title ?? "your project"}. Let me know if you have any questions or want to make changes.\n\nThanks,\nColin Roach\nRoachwood`;
 
   return (
     <div className="space-y-8">
@@ -113,13 +120,6 @@ export default async function EstimateDetailPage({ params }: PageProps) {
             </ButtonLink>
           ) : null}
           <ButtonLink
-            href={`/api/pdf/estimate/${id}`}
-            size="sm"
-            variant="outline"
-          >
-            <FileDown className="h-4 w-4" /> Download PDF
-          </ButtonLink>
-          <ButtonLink
             href={`/admin/estimates/${id}/edit`}
             size="sm"
             variant="secondary"
@@ -127,6 +127,26 @@ export default async function EstimateDetailPage({ params }: PageProps) {
             <Pencil className="h-4 w-4" /> Edit
           </ButtonLink>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-stretch gap-2 sm:items-center">
+        <ButtonLink
+          href={`/api/pdf/estimate/${id}`}
+          target="_blank"
+          rel="noopener"
+          size="lg"
+          variant="outline"
+          className="w-full justify-center sm:w-auto"
+        >
+          <Printer className="h-4 w-4" /> Print estimate
+        </ButtonLink>
+        <EmailDocumentForm
+          action={emailAction}
+          documentLabel="estimate"
+          defaultTo={client?.email ?? ""}
+          defaultSubject={defaultSubject}
+          defaultMessage={defaultMessage}
+        />
       </div>
 
       <Card className="p-0 overflow-hidden">

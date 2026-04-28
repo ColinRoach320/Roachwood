@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Pencil, FileDown } from "lucide-react";
+import { Pencil, Printer } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -12,10 +12,12 @@ import { Button } from "@/components/ui/Button";
 import { InvoiceStatusBadge } from "@/components/ui/Badge";
 import { RecordPaymentForm } from "@/components/admin/RecordPaymentForm";
 import { PaymentLinkButton } from "@/components/admin/PaymentLinkButton";
+import { EmailDocumentForm } from "@/components/admin/EmailDocumentForm";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney } from "@/lib/utils";
 import type { Invoice, Job, Client, LineItem } from "@/lib/types";
 import { setInvoiceStatus, recordInvoicePayment } from "../actions";
+import { sendInvoiceEmail } from "../email-actions";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -55,6 +57,10 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
     Number(invoice.total ?? 0) - Number(invoice.amount_paid ?? 0),
   );
   const paymentAction = recordInvoicePayment.bind(null, id);
+  const emailAction = sendInvoiceEmail.bind(null, id);
+
+  const defaultSubject = `Invoice from Roachwood — ${job?.title ?? invoice.title}`;
+  const defaultMessage = `Hi ${client?.contact_name ?? "there"},\n\nPlease find attached the invoice for ${job?.title ?? "your project"}. Let me know if you have any questions.\n\nThanks,\nColin Roach\nRoachwood`;
 
   return (
     <div className="space-y-8">
@@ -110,13 +116,6 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             </form>
           ) : null}
           <ButtonLink
-            href={`/api/pdf/invoice/${id}`}
-            size="sm"
-            variant="outline"
-          >
-            <FileDown className="h-4 w-4" /> Download PDF
-          </ButtonLink>
-          <ButtonLink
             href={`/admin/invoices/${id}/edit`}
             size="sm"
             variant="secondary"
@@ -124,6 +123,26 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             <Pencil className="h-4 w-4" /> Edit
           </ButtonLink>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-stretch gap-2 sm:items-center">
+        <ButtonLink
+          href={`/api/pdf/invoice/${id}`}
+          target="_blank"
+          rel="noopener"
+          size="lg"
+          variant="outline"
+          className="w-full justify-center sm:w-auto"
+        >
+          <Printer className="h-4 w-4" /> Print invoice
+        </ButtonLink>
+        <EmailDocumentForm
+          action={emailAction}
+          documentLabel="invoice"
+          defaultTo={client?.email ?? ""}
+          defaultSubject={defaultSubject}
+          defaultMessage={defaultMessage}
+        />
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
